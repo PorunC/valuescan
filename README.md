@@ -6,18 +6,22 @@
 
 ```
 valuescan/
-├── valuescan.py           # 主程序入口
-├── start_with_chrome.py   # 启动脚本（自动管理 Chrome）
-├── 启动.bat              # Windows 快捷启动脚本
-├── kill_chrome.py         # Chrome 进程管理模块
-├── config.py              # 配置文件（需自行创建）
-├── config.example.py      # 配置文件模板
-├── logger.py              # 日志工具模块
-├── telegram.py            # Telegram 消息发送模块
-├── message_handler.py     # 消息处理模块
-├── api_monitor.py         # API 监听模块
-├── test_logger.py         # 日志测试脚本
-└── test_telegram.py       # Telegram 测试脚本
+├── valuescan.py              # 主程序入口
+├── start_with_chrome.py      # 启动脚本（自动管理 Chrome）
+├── 启动.bat                 # Windows 快捷启动脚本
+├── kill_chrome.py            # Chrome 进程管理模块
+├── config.py                 # 配置文件（需自行创建）
+├── config.example.py         # 配置文件模板
+├── logger.py                 # 日志工具模块
+├── telegram.py               # Telegram 消息发送模块
+├── message_handler.py        # 消息处理模块
+├── api_monitor.py            # API 监听模块
+├── binance_trader.py         # Binance 自动交易模块 🆕
+├── test_logger.py            # 日志测试脚本
+├── test_telegram.py          # Telegram 测试脚本
+├── test_binance_trader.py    # Binance 交易测试脚本 🆕
+├── BINANCE_GUIDE.md          # Binance 交易完整指南 🆕
+└── README.md                 # 本文件
 ```
 
 ## 🚀 快速开始
@@ -109,6 +113,15 @@ python valuescan.py
 - 实时捕获并解析 API 请求和响应
 - 自动去重避免重复通知
 
+### `binance_trader.py` - Binance 自动交易 🆕
+- `BinanceTrader`: Binance 交易客户端类
+- `check_dual_signal()`: 双信号确认逻辑
+- `execute_buy_signal()`: 执行市价买入
+- `handle_signal_message()`: 处理信号消息
+- **核心功能**：同时收到 Alpha + FOMO 信号才执行买入
+- 支持测试网和正式网
+- 详细交易日志记录
+
 ## 🎯 使用方法
 
 ### 一键启动（推荐）
@@ -165,6 +178,77 @@ python test_telegram.py
 ```bash
 python test_logger.py
 ```
+
+### 测试 Binance 交易功能 🆕
+```bash
+python test_binance_trader.py
+```
+
+## 💰 Binance 合约自动交易功能 🆕
+
+### 核心特性
+
+- ✅ **合约交易**：使用 Binance USDT 永续合约（支持杠杆 1-125x）
+- ✅ **双信号确认**：必须同时收到 **Alpha + FOMO** 两个信号才执行开多
+- ✅ **时间窗口控制**：两个信号必须在配置的时间内（如 30 分钟）同时出现
+- ✅ **顺序无关**：先收到 Alpha 或 FOMO 都可以，只要在时间窗口内完成即可
+- ✅ **自动去重**：同一币种完成交易后自动清除缓存，避免重复开仓
+- ✅ **测试网支持**：可先在合约测试网验证，确认无误后再切换正式网
+- ⚠️ **风险提示**：合约交易有爆仓风险，请务必谨慎使用
+
+### 快速开始
+
+1. **配置 Binance 合约 API**（在 `config.py` 中）：
+   ```python
+   BINANCE_API_KEY = "your_api_key"  # 需要开启"期货交易"权限
+   BINANCE_API_SECRET = "your_api_secret"
+   BINANCE_TESTNET = True  # 强烈建议先用合约测试网
+   BINANCE_TRADE_ENABLED = False  # 先测试，确认后再开启
+   BINANCE_LEVERAGE = 5  # 杠杆倍数（1-125），建议5x
+   BINANCE_TRADE_AMOUNT_USDT = 20  # 每次开仓保证金
+   ```
+
+2. **测试配置**：
+   ```bash
+   python test_binance_trader.py
+   ```
+
+3. **启动程序**：
+   ```bash
+   python start_with_chrome.py
+   ```
+
+### 工作原理
+
+```
+收到 BTC Alpha 信号 → 记录并等待 FOMO...
+    ↓ (30分钟内)
+收到 BTC FOMO 信号 → ✅ 双信号确认！
+    ↓
+设置杠杆 (5x) → 检查余额 → 计算开仓数量
+    ↓
+执行合约市价做多 (保证金 20 USDT × 5倍 = 100 USDT 名义价值)
+    ↓
+清除信号缓存 → 等待下一个机会
+```
+
+**示例**：
+- 配置：保证金 20 USDT，杠杆 5x
+- BTC 价格：50,000 USDT
+- 开仓数量：(20 × 5) / 50,000 = 0.002 BTC
+- 名义价值：100 USDT
+- 爆仓价格（约）：40,000 USDT（下跌 20%）
+
+### 详细文档
+
+完整的使用指南请查看：**[BINANCE_GUIDE.md](BINANCE_GUIDE.md)**
+
+包含：
+- 📖 获取 API 密钥教程
+- ⚙️ 详细配置说明
+- 🔒 安全建议
+- 💡 使用示例
+- ❓ 常见问题解答
 
 ## 📝 日志文件
 

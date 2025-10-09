@@ -9,6 +9,14 @@ from logger import logger
 from config import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
 from telegram import send_telegram_message, format_message_for_telegram
 
+# 尝试导入 Binance 交易模块（如果配置了）
+try:
+    from binance_trader import handle_signal_message
+    BINANCE_AVAILABLE = True
+except ImportError:
+    BINANCE_AVAILABLE = False
+    logger.warning("⚠️ Binance 交易模块未加载")
+
 
 def get_message_type_name(msg_type):
     """
@@ -108,6 +116,24 @@ def process_message_item(item, idx=None, send_to_telegram=False):
     """
     # 打印消息详情
     print_message_details(item, idx)
+    
+    # 处理交易信号（Alpha 和 FOMO）
+    msg_type = item.get('type')
+    if BINANCE_AVAILABLE and msg_type in [110, 113]:  # 110=Alpha, 113=FOMO
+        try:
+            # 解析 content 字段
+            content = {}
+            if 'content' in item and item['content']:
+                try:
+                    content = json.loads(item['content'])
+                except json.JSONDecodeError:
+                    pass
+            
+            # 处理交易信号
+            if content:
+                handle_signal_message(content, msg_type)
+        except Exception as e:
+            logger.error(f"❌ 处理交易信号时出错: {e}")
     
     # 发送到 Telegram（如果启用）
     if send_to_telegram:
