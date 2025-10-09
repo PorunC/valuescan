@@ -97,7 +97,7 @@ def _format_risk_alert(item, content, msg_type_name):
     if predict_type == 4:
         # 主力减持风险
         emoji = "⚠️"
-        title = f"<b>{symbol} 疑似主力减持</b>"
+        title = f"<b>${symbol} 疑似主力减持</b>"
         risk_desc = "主力持仓减少，注意市场风险"
         tag = "#主力减持"
         
@@ -124,8 +124,8 @@ def _format_risk_alert(item, content, msg_type_name):
     
     elif predict_type == 19:
         # 追踪后跌幅超过15% - 下跌止盈
-        emoji = "�"
-        title = f"<b>{symbol} 下跌止盈信号</b>"
+        emoji = "🔴"
+        title = f"<b>${symbol} 下跌止盈信号</b>"
         risk_desc = f"AI追踪后下跌，跌幅已超过 {risk_decline:.2f}%"
         tag = "#下跌止盈"
         
@@ -154,7 +154,7 @@ def _format_risk_alert(item, content, msg_type_name):
     elif predict_type == 31:
         # 追踪后跌幅5-15% - 保护本金
         emoji = "🟠"
-        title = f"<b>{symbol} 本金保护警示</b>"
+        title = f"<b>${symbol} 本金保护警示</b>"
         risk_desc = f"AI追踪后下跌，跌幅已达 {risk_decline:.2f}%"
         tag = "#保护本金"
         
@@ -186,7 +186,7 @@ def _format_risk_alert(item, content, msg_type_name):
         # 其他类型 - 通用格式
         emoji = "📊"
         message_parts = [
-            f"{emoji} <b>【AI追踪】{symbol}</b>",
+            f"{emoji} <b>【AI追踪】${symbol}</b>",
             f"━━━━━━━━━━━━━━━━━━━",
             f"� 现价: <b>${price}</b>",
             f"📊 24H: <code>{change_24h:+.2f}%</code>",
@@ -219,7 +219,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
     # Type 111 资金出逃 - 特殊格式
     if msg_type == 111:
         emoji = "🚨"
-        title = f"<b>{symbol} 主力资金出逃</b>"
+        title = f"<b>${symbol} 主力资金出逃</b>"
         tag = "#追踪结束"
         
         message_parts = [
@@ -247,7 +247,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         funds_text = FUNDS_MOVEMENT_MAP.get(funds_type, 'N/A')
         
         message_parts = [
-            f"{emoji} <b>【Alpha】{symbol}</b>",
+            f"{emoji} <b>【Alpha】${symbol}</b>",
             f"━━━━━━━━━━━━━━━━━━━",
             f"💰 资金状态: {funds_text}",
             f"💵 现价: <b>${price}</b>",
@@ -276,7 +276,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         funds_text = FUNDS_MOVEMENT_MAP.get(funds_type, 'N/A')
         
         message_parts = [
-            f"{emoji} <b>【资金异动】{symbol}</b>",
+            f"{emoji} <b>【资金异动】${symbol}</b>",
             f"━━━━━━━━━━━━━━━━━━━",
             f"💼 资金流向: {funds_text}",
             f"💵 现价: <b>${price}</b>",
@@ -304,7 +304,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         emoji = type_emoji_map.get(msg_type, "📋")
         
         message_parts = [
-            f"{emoji} <b>【{msg_type_name}】{symbol}</b>",
+            f"{emoji} <b>【{msg_type_name}】${symbol}</b>",
             f"━━━━━━━━━━━━━━━━━━━",
         ]
         
