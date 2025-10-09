@@ -77,44 +77,129 @@ def format_message_for_telegram(item):
 
 def _format_risk_alert(item, content, msg_type_name):
     """
-    格式化下跌风险告警（type 100）
+    格式化 AI 追踪告警（type 100）
+    根据 predictType 区分不同场景：
+    - predictType 4: 主力减持风险
+    - predictType 19: 追踪后跌幅超过15%（下跌止盈）
+    - predictType 31: 追踪后跌幅超过5%（保护本金）
     """
     from config import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
     
     symbol = content.get('symbol', 'N/A')
     price = content.get('price', 'N/A')
     change_24h = content.get('percentChange24h', 0)
+    predict_type = content.get('predictType', 0)
     risk_decline = content.get('riskDecline', 0)
     rebound = content.get('rebound', 0)
+    scoring = content.get('scoring', 0)
     
-    # 风险等级判断
-    if risk_decline >= 15:
-        risk_emoji = "🔴"
-        risk_level = "高风险"
-    elif risk_decline >= 10:
-        risk_emoji = "🟠"
-        risk_level = "中风险"
+    # 根据 predictType 判断场景
+    if predict_type == 4:
+        # 主力减持风险
+        emoji = "⚠️"
+        title = f"<b>{symbol} 疑似主力减持</b>"
+        risk_desc = "主力持仓减少，注意市场风险"
+        tag = "#主力减持"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"📉 {risk_desc}",
+            f"💵 现价: <b>${price}</b>",
+            f"📊 24H: <code>{change_24h:+.2f}%</code>",
+        ]
+        
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • 谨慎追高，等待企稳",
+            f"   • 已持仓可考虑减仓观望",
+            f"",
+            f"{tag}",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
+    elif predict_type == 19:
+        # 追踪后跌幅超过15% - 下跌止盈
+        emoji = "�"
+        title = f"<b>{symbol} 下跌止盈信号</b>"
+        risk_desc = f"AI追踪后下跌，跌幅已超过 {risk_decline:.2f}%"
+        tag = "#下跌止盈"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"⚠️ {risk_desc}",
+            f"💵 现价: <b>${price}</b>",
+            f"📉 风险跌幅: <code>-{risk_decline:.2f}%</code>",
+        ]
+        
+        if rebound:
+            message_parts.append(f"📈 反弹幅度: <code>{rebound:+.2f}%</code>")
+        
+        message_parts.extend([
+            f"",
+            f"� 操作建议:",
+            f"   • <b>移动止盈，保护利润</b>",
+            f"   • 避免回吐过多收益",
+            f"   • 等待新的入场机会",
+            f"",
+            f"{tag}",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
+    elif predict_type == 31:
+        # 追踪后跌幅5-15% - 保护本金
+        emoji = "🟠"
+        title = f"<b>{symbol} 本金保护警示</b>"
+        risk_desc = f"AI追踪后下跌，跌幅已达 {risk_decline:.2f}%"
+        tag = "#保护本金"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"⚠️ {risk_desc}",
+            f"💵 现价: <b>${price}</b>",
+            f"� 风险跌幅: <code>-{risk_decline:.2f}%</code>",
+        ]
+        
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        if rebound:
+            message_parts.append(f"📈 反弹幅度: <code>{rebound:+.2f}%</code>")
+        
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • <b>注意保护本金</b>",
+            f"   • 设置止损位，控制风险",
+            f"   • 观察是否企稳反弹",
+            f"",
+            f"{tag}",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
     else:
-        risk_emoji = "🟡"
-        risk_level = "低风险"
-    
-    message_parts = [
-        f"{risk_emoji} <b>【{msg_type_name}】${symbol}</b>",
-        f"━━━━━━━━━━━━━━━━━━━",
-        f"⚠️ <b>风险等级:</b> {risk_level}",
-        f"📉 <b>风险跌幅:</b> {risk_decline}%",
-        f"💵 <b>当前价格:</b> ${price}",
-        f"📊 <b>24H涨跌:</b> {change_24h}%",
-    ]
-    
-    if rebound:
-        message_parts.append(f"� <b>反弹幅度:</b> {rebound}%")
-    
-    message_parts.extend([
-        f"━━━━━━━━━━━━━━━━━━━",
-        f"💡 <b>建议:</b> 移动止盈，保护利润",
-        f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
-    ])
+        # 其他类型 - 通用格式
+        emoji = "📊"
+        message_parts = [
+            f"{emoji} <b>【AI追踪】{symbol}</b>",
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"� 现价: <b>${price}</b>",
+            f"📊 24H: <code>{change_24h:+.2f}%</code>",
+        ]
+        
+        if risk_decline:
+            message_parts.append(f"📉 风险跌幅: <code>-{risk_decline:.2f}%</code>")
+        if rebound:
+            message_parts.append(f"📈 反弹幅度: <code>{rebound:+.2f}%</code>")
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        
+        message_parts.append(f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}")
     
     return "\n".join(message_parts)
 
@@ -122,53 +207,130 @@ def _format_risk_alert(item, content, msg_type_name):
 def _format_general_message(item, content, msg_type, msg_type_name):
     """
     格式化通用消息（资金异动、Alpha等）
+    特别优化 type 111（资金出逃）的提示
     """
     from config import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
     
     symbol = content.get('symbol', 'N/A')
+    price = content.get('price', 'N/A')
+    change_24h = content.get('percentChange24h', 0)
+    funds_type = content.get('fundsMovementType', 0)
     
-    # 根据消息类型选择表情
-    type_emoji_map = {
-        108: "💰",  # 资金异动
-        109: "📢",  # 上下币公告
-        110: "⭐",  # Alpha
-        111: "🏃",  # 资金出逃
-        113: "🚀"   # FOMO
-    }
-    emoji = type_emoji_map.get(msg_type, "📋")
+    # Type 111 资金出逃 - 特殊格式
+    if msg_type == 111:
+        emoji = "🚨"
+        title = f"<b>{symbol} 主力资金出逃</b>"
+        tag = "#追踪结束"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"⚠️ 疑似主力资金已出逃",
+            f"📊 资金异动监控结束",
+            f"💵 现价: <b>${price}</b>",
+            f"� 24H: <code>{change_24h:+.2f}%</code>",
+            f"",
+            f"💡 操作建议:",
+            f"   • <b>注意市场风险</b>",
+            f"   • 已持仓建议及时止盈/止损",
+            f"   • 观望为主，等待企稳信号",
+            f"",
+            f"{tag}",
+            f"� {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ]
+        
+        return "\n".join(message_parts)
     
-    message_parts = [
-        f"{emoji} <b>【{msg_type_name}】${symbol}</b>",
-        f"━━━━━━━━━━━━━━━━━━━",
-    ]
-    
-    if 'price' in content:
-        message_parts.append(f"💵 <b>价格:</b> ${content.get('price', 'N/A')}")
-    
-    if 'percentChange24h' in content:
-        change = content.get('percentChange24h', 0)
-        emoji = "📈" if change > 0 else "📉"
-        message_parts.append(f"{emoji} <b>24H涨跌:</b> {change}%")
-    
-    if 'tradeType' in content:
-        trade_type = content.get('tradeType')
-        trade_text = TRADE_TYPE_MAP.get(trade_type, 'N/A')
-        message_parts.append(f"📊 <b>交易类型:</b> {trade_text}")
-    
-    if 'fundsMovementType' in content:
-        funds_type = content.get('fundsMovementType')
+    # Type 110 Alpha - 优化格式
+    elif msg_type == 110:
+        emoji = "⭐"
         funds_text = FUNDS_MOVEMENT_MAP.get(funds_type, 'N/A')
-        message_parts.append(f"💼 <b>资金流向:</b> {funds_text}")
+        
+        message_parts = [
+            f"{emoji} <b>【Alpha】{symbol}</b>",
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"💰 资金状态: {funds_text}",
+            f"💵 现价: <b>${price}</b>",
+        ]
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h > 0 else "📉"
+            message_parts.append(f"{change_emoji} 24H: <code>{change_24h:+.2f}%</code>")
+        
+        if 'tradeType' in content:
+            trade_type = content.get('tradeType')
+            trade_text = TRADE_TYPE_MAP.get(trade_type, 'N/A')
+            message_parts.append(f"📊 类型: {trade_text}")
+        
+        message_parts.extend([
+            f"",
+            f"💡 潜力标的，可关注后续表现",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+        
+        return "\n".join(message_parts)
     
-    if 'source' in content:
-        message_parts.append(f"📰 <b>来源:</b> {content.get('source', 'N/A')}")
+    # Type 108 资金异动
+    elif msg_type == 108:
+        emoji = "💰"
+        funds_text = FUNDS_MOVEMENT_MAP.get(funds_type, 'N/A')
+        
+        message_parts = [
+            f"{emoji} <b>【资金异动】{symbol}</b>",
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"💼 资金流向: {funds_text}",
+            f"💵 现价: <b>${price}</b>",
+        ]
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h > 0 else "📉"
+            message_parts.append(f"{change_emoji} 24H: <code>{change_24h:+.2f}%</code>")
+        
+        if 'tradeType' in content:
+            trade_type = content.get('tradeType')
+            trade_text = TRADE_TYPE_MAP.get(trade_type, 'N/A')
+            message_parts.append(f"📊 类型: {trade_text}")
+        
+        message_parts.append(f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}")
+        
+        return "\n".join(message_parts)
     
-    if 'titleSimplified' in content:
-        message_parts.append(f"💬 {content.get('titleSimplified', 'N/A')}")
-    
-    message_parts.extend([
-        f"━━━━━━━━━━━━━━━━━━━",
-        f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
-    ])
-    
-    return "\n".join(message_parts)
+    # 其他类型 - 通用格式
+    else:
+        type_emoji_map = {
+            109: "📢",  # 上下币公告
+            113: "🚀"   # FOMO
+        }
+        emoji = type_emoji_map.get(msg_type, "📋")
+        
+        message_parts = [
+            f"{emoji} <b>【{msg_type_name}】{symbol}</b>",
+            f"━━━━━━━━━━━━━━━━━━━",
+        ]
+        
+        if price:
+            message_parts.append(f"💵 现价: <b>${price}</b>")
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h > 0 else "📉"
+            message_parts.append(f"{change_emoji} 24H: <code>{change_24h:+.2f}%</code>")
+        
+        if 'tradeType' in content:
+            trade_type = content.get('tradeType')
+            trade_text = TRADE_TYPE_MAP.get(trade_type, 'N/A')
+            message_parts.append(f"📊 类型: {trade_text}")
+        
+        if 'fundsMovementType' in content and funds_type:
+            funds_text = FUNDS_MOVEMENT_MAP.get(funds_type, 'N/A')
+            message_parts.append(f"💼 资金: {funds_text}")
+        
+        if 'source' in content:
+            message_parts.append(f"📰 来源: {content.get('source', 'N/A')}")
+        
+        if 'titleSimplified' in content:
+            message_parts.append(f"")
+            message_parts.append(f"💬 {content.get('titleSimplified', 'N/A')}")
+        
+        message_parts.append(f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}")
+        
+        return "\n".join(message_parts)
