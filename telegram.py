@@ -187,20 +187,20 @@ def _format_risk_alert(item, content, msg_type_name):
     
     else:
         # AI追踪结束 - 通用格式
-        emoji = "�"
+        emoji = "🔔"
         title = f"<b>${symbol} AI追踪结束</b>"
         tag = "#追踪结束"
         
         message_parts = [
             f"{emoji} {title}",
             f"━━━━━━━━━━━━━━━━━━━",
-            f"� AI实时追踪已结束",
-            f"�💵 现价: <b>${price}</b>",
+            f"🤖 AI实时追踪已结束",
+            f"💵 现价: <b>${price}</b>",
         ]
         
         # 根据涨跌显示不同提示
         if change_24h:
-            change_emoji = "�" if change_24h > 0 else "📉"
+            change_emoji = "📈" if change_24h > 0 else "📉"
             message_parts.append(f"{change_emoji} 24H: <code>{change_24h:+.2f}%</code>")
         
         if scoring:
