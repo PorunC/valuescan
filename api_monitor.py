@@ -15,14 +15,14 @@ def capture_api_request():
     """
     模式1: 自动启动浏览器并监听 API 请求
     """
-    # 创建页面对象，连接到已打开的浏览器
+    # 配置浏览器选项，自动启动
     try:
-        page = ChromiumPage()
-        logger.info("成功连接到浏览器")
+        co = ChromiumOptions()
+        co.auto_port()  # 自动分配端口
+        page = ChromiumPage(addr_or_opts=co)
+        logger.info("成功启动浏览器")
     except Exception as e:
-        logger.error(f"连接浏览器失败: {e}")
-        logger.error("请确保 Chrome 已启动并开启调试端口 (9222)")
-        logger.error("启动命令: chrome.exe --remote-debugging-port=9222")
+        logger.error(f"启动浏览器失败: {e}")
         return
     
     # 启动监听
