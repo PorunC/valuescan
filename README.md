@@ -7,6 +7,9 @@
 ```
 valuescan/
 ├── valuescan.py           # 主程序入口
+├── start_with_chrome.py   # 启动脚本（自动管理 Chrome）
+├── 启动.bat              # Windows 快捷启动脚本
+├── kill_chrome.py         # Chrome 进程管理模块
 ├── config.py              # 配置文件（需自行创建）
 ├── config.example.py      # 配置文件模板
 ├── logger.py              # 日志工具模块
@@ -37,8 +40,21 @@ cp config.example.py config.py
 - `TELEGRAM_BOT_TOKEN`: Telegram Bot Token（从 @BotFather 获取）
 - `TELEGRAM_CHAT_ID`: 你的 Telegram 用户 ID（从 @userinfobot 获取）
 
-### 3. 运行程序
+### 3. 运行程序（一键启动）
 
+**Windows 用户**：双击 `启动.bat` 文件
+
+**或使用命令行**：
+```bash
+python start_with_chrome.py
+```
+
+**启动脚本会自动完成以下操作：**
+1. ✅ 关闭所有现有的 Chrome 进程
+2. ✅ 以调试模式启动 Chrome（使用当前目录下的 `chrome-debug-profile` 作为用户数据）
+3. ✅ 启动 API 监听程序
+
+**如果只想运行监听程序（Chrome 已启动）：**
 ```bash
 python valuescan.py
 ```
@@ -46,13 +62,26 @@ python valuescan.py
 ## 📦 模块说明
 
 ### `valuescan.py` - 主程序
-- 程序入口点
-- 提供交互式菜单选择监听模式
+- API 监听程序入口
+- 连接到调试模式的 Chrome 并监听 API
+
+### `start_with_chrome.py` - 一键启动脚本
+- 自动管理 Chrome 浏览器生命周期
+- 关闭所有现有 Chrome 进程
+- 以调试模式启动 Chrome（使用项目目录下的独立用户数据）
+- 自动启动监听程序
+
+### `kill_chrome.py` - Chrome 进程管理
+- `kill_all_chrome_processes()`: 关闭所有 Chrome 和 ChromeDriver 进程
+- `start_chrome_debug_mode()`: 以调试模式启动 Chrome
+- `restart_chrome_in_debug_mode()`: 一键重启到调试模式
+- 支持多种 Chrome 安装路径自动检测
+- Chrome 用户数据存储在: `./chrome-debug-profile/`
 
 ### `config.py` - 配置管理
 - **Telegram 配置**: Bot Token 和用户 ID
-- **开关配置**: 控制两种模式是否发送 TG 消息
-- **浏览器配置**: Chrome 调试端口设置
+- **开关配置**: 是否发送 TG 消息
+- **浏览器配置**: Chrome 调试端口（默认 9222）
 - **API 配置**: 监听的 API 路径
 - **类型映射**: 消息类型、交易类型、资金流向的映射表
 - **日志配置**: 日志级别、文件输出等设置
@@ -82,19 +111,27 @@ python valuescan.py
 
 ## 🎯 使用方法
 
-### 模式 1: 自动启动浏览器
-1. 运行程序选择选项 1
-2. 程序会自动启动 Chrome 并开始监听
-3. 在浏览器中访问 valuescan.io 相关页面
+### 一键启动（推荐）
 
-### 模式 2: 连接现有浏览器
-1. 先用调试模式启动 Chrome：
+1. **Windows 用户**：直接双击 `启动.bat` 文件
+2. **或运行命令**：
    ```bash
-   chrome.exe --remote-debugging-port=9222
+   python start_with_chrome.py
    ```
-2. 运行程序选择选项 2
-3. 程序连接到已打开的 Chrome 实例
-4. 在浏览器中访问 valuescan.io 相关页面
+3. 脚本会自动：
+   - 关闭所有现有 Chrome 进程
+   - 以调试模式启动 Chrome（端口 9222）
+   - 启动 API 监听程序
+4. 在 Chrome 浏览器中访问 [valuescan.io](https://valuescan.io) 相关页面
+5. 程序会自动捕获 API 请求并根据配置发送到 Telegram
+
+### 仅运行监听（Chrome 已启动）
+
+如果 Chrome 已经在调试模式下运行，可以直接运行监听程序：
+
+```bash
+python valuescan.py
+```
 
 ## ⚙️ 配置说明
 

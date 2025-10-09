@@ -7,36 +7,26 @@ from logger import logger
 from config import (
     TELEGRAM_BOT_TOKEN,
     SEND_TG_IN_MODE_1,
-    SEND_TG_IN_MODE_2,
     CHROME_DEBUG_PORT
 )
-from api_monitor import capture_api_request, capture_with_existing_browser
+from api_monitor import capture_api_request
 
 
 def main():
-    """主函数：显示菜单并启动监听"""
+    """主函数：显示配置信息并启动监听"""
     
-    logger.info("DrissionPage API 抓包工具")
+    logger.info("ValueScan API 监听工具")
     logger.info("="*60)
     logger.info("\n当前配置:")
     logger.info(f"  Telegram Bot: {'已配置' if TELEGRAM_BOT_TOKEN else '未配置'}")
-    logger.info(f"  选项1发送TG: {'✅ 是' if SEND_TG_IN_MODE_1 else '❌ 否'}")
-    logger.info(f"  选项2发送TG: {'✅ 是' if SEND_TG_IN_MODE_2 else '❌ 否'}")
-    logger.info("\n选择模式:")
-    logger.info("1. 自动启动浏览器并监听")
-    logger.info("2. 连接到已存在的浏览器 (需要先用调试模式启动 Chrome)")
+    logger.info(f"  发送TG消息: {'✅ 是' if SEND_TG_IN_MODE_1 else '❌ 否'}")
+    logger.info(f"  调试端口: {CHROME_DEBUG_PORT}")
+    logger.info(f"  Chrome数据: ./chrome-debug-profile")
+    logger.info("\n确保 Chrome 已用调试模式启动 (端口 {})".format(CHROME_DEBUG_PORT))
+    logger.info("如果还未启动，请运行: python start_with_chrome.py")
+    logger.info("\n正在连接并开始监听...")
     
-    choice = input("\n请选择 (1/2): ")
-    
-    if choice == "1":
-        capture_api_request()
-    elif choice == "2":
-        logger.info("\n确保 Chrome 已用以下命令启动:")
-        logger.info(f"chrome.exe --remote-debugging-port={CHROME_DEBUG_PORT}")
-        input("按回车继续...")
-        capture_with_existing_browser()
-    else:
-        logger.warning("无效选择")
+    capture_api_request()
 
 
 if __name__ == "__main__":

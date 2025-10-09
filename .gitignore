@@ -24,4 +24,7 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# Chrome 调试模式数据目录
+chrome-debug-profile/
+
 test*
