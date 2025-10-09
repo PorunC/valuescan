@@ -186,24 +186,40 @@ def _format_risk_alert(item, content, msg_type_name):
         ])
     
     else:
-        # 其他类型 - 通用格式
-        emoji = "📊"
+        # AI追踪结束 - 通用格式
+        emoji = "�"
+        title = f"<b>${symbol} AI追踪结束</b>"
+        tag = "#追踪结束"
+        
         message_parts = [
-            f"{emoji} <b>【AI追踪】${symbol}</b>",
-            f"━━━━━━━━━",
-            f"💵 现价: <b>${price}</b>",
-            f"📊 24H: <code>{change_24h:+.2f}%</code>",
+            f"{emoji} {title}",
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"� AI实时追踪已结束",
+            f"�💵 现价: <b>${price}</b>",
         ]
         
-        if risk_decline:
-            message_parts.append(f"📉 风险跌幅: <code>-{risk_decline:.2f}%</code>")
-        if rebound:
-            message_parts.append(f"📈 反弹幅度: <code>{rebound:+.2f}%</code>")
+        # 根据涨跌显示不同提示
+        if change_24h:
+            change_emoji = "�" if change_24h > 0 else "📉"
+            message_parts.append(f"{change_emoji} 24H: <code>{change_24h:+.2f}%</code>")
+        
         if scoring:
             message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
         
+        if risk_decline:
+            message_parts.append(f"📉 追踪期跌幅: <code>-{risk_decline:.2f}%</code>")
+        if rebound:
+            message_parts.append(f"📈 反弹幅度: <code>{rebound:+.2f}%</code>")
+        
         message_parts.extend([
-            f"━━━━━━━━━",
+            f"",
+            f"💡 提示:",
+            f"   • AI追踪监控已结束",
+            f"   • 建议关注后续走势变化",
+            f"   • 如有持仓请自行评估风险",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━━━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
