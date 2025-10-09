@@ -119,6 +119,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • 已持仓可考虑减仓观望",
             f"",
             f"{tag}",
+            f"━━━━━━━━━━━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
@@ -142,12 +143,13 @@ def _format_risk_alert(item, content, msg_type_name):
         
         message_parts.extend([
             f"",
-            f"� 操作建议:",
+            f"💡 操作建议:",
             f"   • <b>移动止盈，保护利润</b>",
             f"   • 避免回吐过多收益",
             f"   • 等待新的入场机会",
             f"",
             f"{tag}",
+            f"━━━━━━━━━━━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
@@ -179,6 +181,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • 观察是否企稳反弹",
             f"",
             f"{tag}",
+            f"━━━━━━━━━━━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
@@ -199,7 +202,10 @@ def _format_risk_alert(item, content, msg_type_name):
         if scoring:
             message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
         
-        message_parts.append(f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}")
+        message_parts.extend([
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
     
     return "\n".join(message_parts)
 
@@ -265,6 +271,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         message_parts.extend([
             f"",
             f"💡 潜力标的，可关注后续表现",
+            f"━━━━━━━━━━━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
         
@@ -291,7 +298,10 @@ def _format_general_message(item, content, msg_type, msg_type_name):
             trade_text = TRADE_TYPE_MAP.get(trade_type, 'N/A')
             message_parts.append(f"📊 类型: {trade_text}")
         
-        message_parts.append(f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}")
+        message_parts.extend([
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
         
         return "\n".join(message_parts)
     
@@ -331,6 +341,9 @@ def _format_general_message(item, content, msg_type, msg_type_name):
             message_parts.append(f"")
             message_parts.append(f"💬 {content.get('titleSimplified', 'N/A')}")
         
-        message_parts.append(f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}")
+        message_parts.extend([
+            f"━━━━━━━━━━━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
         
         return "\n".join(message_parts)
