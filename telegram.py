@@ -103,7 +103,7 @@ def _format_risk_alert(item, content, msg_type_name):
         
         message_parts = [
             f"{emoji} {title}",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"📉 {risk_desc}",
             f"💵 现价: <b>${price}</b>",
             f"📊 24H: <code>{change_24h:+.2f}%</code>",
@@ -119,7 +119,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • 已持仓可考虑减仓观望",
             f"",
             f"{tag}",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
@@ -132,7 +132,7 @@ def _format_risk_alert(item, content, msg_type_name):
         
         message_parts = [
             f"{emoji} {title}",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"⚠️ {risk_desc}",
             f"💵 现价: <b>${price}</b>",
             f"📉 风险跌幅: <code>-{risk_decline:.2f}%</code>",
@@ -149,7 +149,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • 等待新的入场机会",
             f"",
             f"{tag}",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
@@ -162,10 +162,10 @@ def _format_risk_alert(item, content, msg_type_name):
         
         message_parts = [
             f"{emoji} {title}",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"⚠️ {risk_desc}",
             f"💵 现价: <b>${price}</b>",
-            f"� 风险跌幅: <code>-{risk_decline:.2f}%</code>",
+            f"📉 风险跌幅: <code>-{risk_decline:.2f}%</code>",
         ]
         
         if scoring:
@@ -181,7 +181,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • 观察是否企稳反弹",
             f"",
             f"{tag}",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
@@ -190,8 +190,8 @@ def _format_risk_alert(item, content, msg_type_name):
         emoji = "📊"
         message_parts = [
             f"{emoji} <b>【AI追踪】${symbol}</b>",
-            f"━━━━━━━━━━━━━━━━━━━",
-            f"� 现价: <b>${price}</b>",
+            f"━━━━━━━━━",
+            f"💵 现价: <b>${price}</b>",
             f"📊 24H: <code>{change_24h:+.2f}%</code>",
         ]
         
@@ -203,7 +203,7 @@ def _format_risk_alert(item, content, msg_type_name):
             message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
         
         message_parts.extend([
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
@@ -230,11 +230,11 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         
         message_parts = [
             f"{emoji} {title}",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"⚠️ 疑似主力资金已出逃",
             f"📊 资金异动监控结束",
             f"💵 现价: <b>${price}</b>",
-            f"� 24H: <code>{change_24h:+.2f}%</code>",
+            f"📉 24H: <code>{change_24h:+.2f}%</code>",
             f"",
             f"💡 操作建议:",
             f"   • <b>注意市场风险</b>",
@@ -242,7 +242,8 @@ def _format_general_message(item, content, msg_type, msg_type_name):
             f"   • 观望为主，等待企稳信号",
             f"",
             f"{tag}",
-            f"� {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ]
         
         return "\n".join(message_parts)
@@ -254,7 +255,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         
         message_parts = [
             f"{emoji} <b>【Alpha】${symbol}</b>",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"💰 资金状态: {funds_text}",
             f"💵 现价: <b>${price}</b>",
         ]
@@ -271,7 +272,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         message_parts.extend([
             f"",
             f"💡 潜力标的，可关注后续表现",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
         
@@ -284,7 +285,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         
         message_parts = [
             f"{emoji} <b>【资金异动】${symbol}</b>",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"💼 资金流向: {funds_text}",
             f"💵 现价: <b>${price}</b>",
         ]
@@ -299,7 +300,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
             message_parts.append(f"📊 类型: {trade_text}")
         
         message_parts.extend([
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
         
@@ -315,7 +316,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         
         message_parts = [
             f"{emoji} <b>【{msg_type_name}】${symbol}</b>",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
         ]
         
         if price:
@@ -342,7 +343,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
             message_parts.append(f"💬 {content.get('titleSimplified', 'N/A')}")
         
         message_parts.extend([
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
         
