@@ -1,0 +1,80 @@
+"""
+ValuesCan API 监听工具配置文件示例
+请复制此文件为 config.py 并填入您的配置
+"""
+
+# ==================== Telegram Bot 配置 ====================
+# Telegram Bot Token (从 @BotFather 获取)
+# 获取方式: 在 Telegram 中找到 @BotFather，发送 /newbot 创建机器人
+TELEGRAM_BOT_TOKEN = ""
+
+# Telegram 目标用户 ID
+# 获取方式: 在 Telegram 中找到 @userinfobot，发送任意消息获取您的 ID
+TELEGRAM_CHAT_ID = ""
+
+# ==================== 消息发送开关 ====================
+# 选项1（自动启动浏览器）是否发送 TG 消息
+SEND_TG_IN_MODE_1 = True
+
+# 选项2（连接现有浏览器）是否发送 TG 消息
+SEND_TG_IN_MODE_2 = True
+
+# ==================== 浏览器配置 ====================
+# Chrome 远程调试端口
+CHROME_DEBUG_PORT = 9222
+
+# ==================== API 配置 ====================
+# 监听的 API 路径（部分匹配）
+API_PATH = "api/account/message/getWarnMessage"
+
+# ==================== 消息类型映射 ====================
+MESSAGE_TYPE_MAP = {
+    100: '下跌风险',
+    108: '资金异动',
+    109: '上下币公告',
+    110: 'Alpha',
+    111: '资金出逃',
+    113: 'FOMO'
+}
+
+# 交易类型映射
+TRADE_TYPE_MAP = {
+    1: '现货',
+    2: '合约'
+}
+
+# 资金流向映射
+FUNDS_MOVEMENT_MAP = {
+    1: '24H内异动',  # 24H内出现大量资金异常流入（短期异动）
+    2: '24H外异动',  # 24H外出现大量资金异常流入（中期异动）
+    3: '持续流入',   # 资金持续流入，活跃异常（利多信号）
+    4: '疑似资金出逃',
+    5: '交易量激增'
+}
+
+# ==================== 日志配置 ====================
+# 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
+# DEBUG: 详细的调试信息
+# INFO: 一般信息（推荐）
+# WARNING: 警告信息
+# ERROR: 错误信息
+# CRITICAL: 严重错误
+LOG_LEVEL = "INFO"
+
+# 是否输出日志到文件
+LOG_TO_FILE = True
+
+# 日志文件路径
+LOG_FILE = "valuescan.log"
+
+# 日志文件最大大小（字节）10MB
+LOG_MAX_SIZE = 10 * 1024 * 1024
+
+# 保留的日志文件数量（日志轮转）
+LOG_BACKUP_COUNT = 5
+
+# 日志格式
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
+
+# 日期格式
+LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
