@@ -79,6 +79,7 @@ def _format_risk_alert(item, content, msg_type_name):
     """
     格式化 AI 追踪告警（type 100）
     根据 predictType 区分不同场景：
+    - predictType 2: 主力出逃（风险增加）
     - predictType 4: 主力减持风险
     - predictType 5: AI 开始追踪潜力代币
     - predictType 7: 风险增加，主力大量减持
@@ -103,7 +104,50 @@ def _format_risk_alert(item, content, msg_type_name):
     scoring = content.get('scoring', 0)
     
     # 根据 predictType 判断场景
-    if predict_type == 24:
+    if predict_type == 2:
+        # 主力出逃（风险增加）
+        emoji = "🔴"
+        title = f"<b>${symbol} 主力出逃警示</b>"
+        tag = "#主力出逃"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"⚠️ 疑似主力<b>大量减持</b>",
+            f"📉 <b>风险增加</b>，建议止盈",
+            f"💵 现价: <b>${price}</b>",
+        ]
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+        
+        # 显示追踪期涨跌幅
+        if gains and gains > 0:
+            message_parts.append(f"📈 追踪涨幅: <code>+{gains:.2f}%</code>")
+        if content.get('decline', 0) > 0:
+            decline = content.get('decline', 0)
+            message_parts.append(f"📉 回调幅度: <code>-{decline:.2f}%</code>")
+        
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        
+        message_parts.extend([
+            f"",
+            f"💡 风险警示:",
+            f"   • 🔴 <b>主力疑似出逃</b>",
+            f"   • 📉 价格可能进入调整期",
+            f"   • 💰 <b>建议大部分止盈</b>",
+            f"   • 🛡️ 保护已有利润",
+            f"   • ⛔ 不建议继续追高",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
+    elif predict_type == 24:
         # 价格高点风险（疑似顶部）
         emoji = "📍"
         title = f"<b>${symbol} 价格高点警示</b>"
