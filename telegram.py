@@ -81,6 +81,7 @@ def _format_risk_alert(item, content, msg_type_name):
     根据 predictType 区分不同场景：
     - predictType 4: 主力减持风险
     - predictType 5: AI 开始追踪潜力代币
+    - predictType 8: 下跌趋势减弱，追踪结束
     - predictType 16: 追踪后涨幅超过20%（上涨止盈）
     - predictType 19: 追踪后跌幅超过15%（下跌止盈）
     - predictType 24: 价格高点风险（疑似顶部）
@@ -337,6 +338,46 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • <b>注意保护本金</b>",
             f"   • 设置止损位，控制风险",
             f"   • 观察是否企稳反弹",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
+    elif predict_type == 8:
+        # 下跌趋势减弱，追踪结束
+        emoji = "🟢"
+        title = f"<b>${symbol} 趋势转变</b>"
+        tag = "#追踪结束"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"📊 价格下跌趋势减弱",
+            f"🤖 AI实时追踪已结束",
+            f"💵 现价: <b>${price}</b>",
+        ]
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+        
+        if risk_decline:
+            message_parts.append(f"📉 追踪期跌幅: <code>-{risk_decline:.2f}%</code>")
+        if rebound:
+            message_parts.append(f"📈 反弹幅度: <code>+{rebound:.2f}%</code>")
+        
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        
+        message_parts.extend([
+            f"",
+            f"💡 提示:",
+            f"   • ✅ 下跌趋势有所缓解",
+            f"   • 📊 关注是否企稳反弹",
+            f"   • ⏰ 可观察后续走势再决策",
+            f"   • ⚠️ 仍需注意市场风险",
             f"",
             f"{tag}",
             f"━━━━━━━━━",
