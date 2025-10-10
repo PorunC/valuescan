@@ -80,6 +80,7 @@ def _format_risk_alert(item, content, msg_type_name):
     格式化 AI 追踪告警（type 100）
     根据 predictType 区分不同场景：
     - predictType 4: 主力减持风险
+    - predictType 5: AI 开始追踪潜力代币
     - predictType 16: 追踪后涨幅超过20%（上涨止盈）
     - predictType 19: 追踪后跌幅超过15%（下跌止盈）
     - predictType 31: 追踪后跌幅超过5%（保护本金）
@@ -96,7 +97,51 @@ def _format_risk_alert(item, content, msg_type_name):
     scoring = content.get('scoring', 0)
     
     # 根据 predictType 判断场景
-    if predict_type == 4:
+    if predict_type == 5:
+        # AI 开始追踪潜力代币
+        emoji = "🔍"
+        title = f"<b>${symbol} AI 开始追踪</b>"
+        tag = "#观察代币"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"🤖 AI捕获潜力代币，开始实时追踪",
+            f"💵 现价: <b>${price}</b>",
+        ]
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+        
+        if scoring:
+            # 根据评分给出不同的评价
+            score_int = int(scoring)
+            if score_int >= 70:
+                score_desc = "⭐⭐⭐ 高分"
+            elif score_int >= 60:
+                score_desc = "⭐⭐ 中上"
+            elif score_int >= 50:
+                score_desc = "⭐ 中等"
+            else:
+                score_desc = "观察中"
+            message_parts.append(f"🎯 AI评分: <b>{score_int}</b> ({score_desc})")
+        
+        message_parts.extend([
+            f"",
+            f"💡 提示:",
+            f"   • 🔍 AI 已开始实时监控",
+            f"   • 📊 关注后续价格和资金动态",
+            f"   • 🎯 等待更明确的入场信号",
+            f"   • ⚠️ 追踪≠建议买入，注意风险",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
+    elif predict_type == 4:
         # 主力减持风险
         emoji = "⚠️"
         title = f"<b>${symbol} 疑似主力减持</b>"
