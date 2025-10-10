@@ -396,8 +396,102 @@ def _format_general_message(item, content, msg_type, msg_type_name):
     change_24h = content.get('percentChange24h', 0)
     funds_type = content.get('fundsMovementType', 0)
     
+    # Type 114 资金异常 - 特殊格式（包含追踪涨幅信息）
+    if msg_type == 114:
+        emoji = "💎"
+        funds_text = FUNDS_MOVEMENT_MAP.get(funds_type, 'N/A')
+        
+        # 从 extField 中提取涨幅信息
+        ext_field = content.get('extField', {})
+        gains = ext_field.get('gains', 0) if isinstance(ext_field, dict) else 0
+        
+        # 根据涨幅判断消息类型
+        if gains > 0:
+            # 有涨幅数据 - 上涨止盈提示
+            if gains >= 50:
+                emoji = "🎉"
+                title = f"<b>${symbol} 大幅上涨止盈</b>"
+                tag = "#上涨止盈"
+            elif gains >= 20:
+                emoji = "🎊"
+                title = f"<b>${symbol} 上涨止盈</b>"
+                tag = "#上涨止盈"
+            else:
+                emoji = "💰"
+                title = f"<b>${symbol} 资金异常</b>"
+                tag = "#资金异常"
+            
+            message_parts = [
+                f"{emoji} {title}",
+                f"━━━━━━━━━",
+            ]
+            
+            if gains >= 20:
+                message_parts.append(f"✅ AI追踪后涨幅达 <b>{gains:.2f}%</b> 🚀")
+            
+            message_parts.extend([
+                f"💼 资金类型: {funds_text}",
+                f"💵 现价: <b>${price}</b>",
+            ])
+            
+            if change_24h:
+                change_emoji = "📈" if change_24h >= 0 else "📉"
+                change_text = "涨幅" if change_24h >= 0 else "跌幅"
+                message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+            
+            if 'tradeType' in content:
+                trade_type = content.get('tradeType')
+                trade_text = TRADE_TYPE_MAP.get(trade_type, 'N/A')
+                message_parts.append(f"📊 类型: {trade_text}")
+            
+            # 根据涨幅给出不同建议
+            if gains >= 20:
+                message_parts.extend([
+                    f"",
+                    f"💡 操作建议:",
+                    f"   • 🎯 <b>移动止盈，锁定利润</b>",
+                    f"   • 📊 可考虑分批止盈离场",
+                    f"   • 🛡️ 避免回吐过多收益",
+                ])
+            
+            message_parts.extend([
+                f"",
+                f"{tag}",
+                f"━━━━━━━━━",
+                f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            ])
+        else:
+            # 没有涨幅数据 - 普通资金异常
+            title = f"<b>${symbol} 资金异常</b>"
+            tag = "#资金异常"
+            
+            message_parts = [
+                f"{emoji} {title}",
+                f"━━━━━━━━━",
+                f"💼 资金类型: {funds_text}",
+                f"💵 现价: <b>${price}</b>",
+            ]
+            
+            if change_24h:
+                change_emoji = "📈" if change_24h >= 0 else "📉"
+                message_parts.append(f"{change_emoji} 24H: <code>{change_24h:+.2f}%</code>")
+            
+            if 'tradeType' in content:
+                trade_type = content.get('tradeType')
+                trade_text = TRADE_TYPE_MAP.get(trade_type, 'N/A')
+                message_parts.append(f"📊 类型: {trade_text}")
+            
+            message_parts.extend([
+                f"",
+                f"{tag}",
+                f"━━━━━━━━━",
+                f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            ])
+        
+        return "\n".join(message_parts)
+    
     # Type 111 资金出逃 - 特殊格式
-    if msg_type == 111:
+    elif msg_type == 111:
         emoji = "🚨"
         title = f"<b>${symbol} 主力资金出逃</b>"
         tag = "#追踪结束"
