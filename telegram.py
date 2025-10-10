@@ -85,6 +85,7 @@ def _format_risk_alert(item, content, msg_type_name):
     - predictType 7: 风险增加，主力大量减持
     - predictType 8: 下跌趋势减弱，追踪结束
     - predictType 16: 追踪后涨幅达到盈利目标（10%+，上涨止盈）
+    - predictType 17: 达到最大涨幅后回调止盈（15%+回调）
     - predictType 19: 追踪后跌幅达到止损位（15%+，下跌止盈）
     - predictType 24: 价格高点风险（疑似顶部）
     - predictType 28: 主力增持加速（上涨机会）
@@ -408,6 +409,43 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • 📊 可考虑分批止盈离场",
             f"   • 🛡️ 避免回吐过多收益",
             f"   • ⏰ 保持警惕，注意回调风险",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
+    elif predict_type == 17:
+        # 达到最大涨幅后回调止盈
+        emoji = "🟡"
+        title = f"<b>${symbol} 回调止盈信号</b>"
+        decline = content.get('decline', 0)
+        tag = "#回调止盈"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"📈 AI追踪后最大涨幅: <b>+{gains:.2f}%</b>",
+            f"📉 当前回调幅度: <b>-{decline:.2f}%</b>",
+            f"💵 现价: <b>${price}</b>",
+        ]
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+        
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • ⚠️ <b>高点回调较大，注意保护利润</b>",
+            f"   • 🎯 移动止盈，锁定剩余收益",
+            f"   • 📊 可考虑分批止盈离场",
+            f"   • 🛡️ 避免继续回吐更多利润",
+            f"   • 📉 观察是否企稳或继续下跌",
             f"",
             f"{tag}",
             f"━━━━━━━━━",
