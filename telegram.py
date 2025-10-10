@@ -25,11 +25,25 @@ def send_telegram_message(message_text):
         return False
     
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    
+    # 添加 Inline Keyboard 按钮
+    inline_keyboard = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🔗 访问 ValueScan",
+                    "url": "https://www.valuescan.io/login?inviteCode=GXZ722"
+                }
+            ]
+        ]
+    }
+    
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": message_text,
         "parse_mode": "HTML",
-        "disable_web_page_preview": True
+        "disable_web_page_preview": True,
+        "reply_markup": inline_keyboard
     }
     
     try:

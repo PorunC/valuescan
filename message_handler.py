@@ -218,7 +218,8 @@ def process_response_data(response_data, send_to_telegram=False, seen_ids=None):
         
         if new_messages:
             logger.info(f"  【新消息列表】:")
-            for idx, item in enumerate(new_messages, 1):
+            # 倒序发送消息（最新的消息最先发送到 Telegram）
+            for idx, item in enumerate(reversed(new_messages), 1):
                 process_message_item(item, idx, send_to_telegram)
         else:
             logger.info(f"  本次无新消息（所有消息都已处理过）")
