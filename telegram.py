@@ -83,6 +83,7 @@ def _format_risk_alert(item, content, msg_type_name):
     - predictType 5: AI 开始追踪潜力代币
     - predictType 16: 追踪后涨幅超过20%（上涨止盈）
     - predictType 19: 追踪后跌幅超过15%（下跌止盈）
+    - predictType 29: 主力持仓减少加速
     - predictType 31: 追踪后跌幅超过5%（保护本金）
     """
     from config import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
@@ -135,6 +136,44 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • 📊 关注后续价格和资金动态",
             f"   • 🎯 等待更明确的入场信号",
             f"   • ⚠️ 追踪≠建议买入，注意风险",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
+    elif predict_type == 29:
+        # 主力持仓减少加速
+        emoji = "🚨"
+        title = f"<b>${symbol} 主力加速减持</b>"
+        tag = "#持仓减少加速"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"⚠️ 疑似主力<b>大量抛售</b>，减持加速",
+            f"💵 现价: <b>${price}</b>",
+        ]
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+        
+        if rebound and rebound != 0:
+            rebound_emoji = "📈" if rebound > 0 else "📉"
+            message_parts.append(f"{rebound_emoji} 短期波动: <code>{rebound:+.2f}%</code>")
+        
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        
+        message_parts.extend([
+            f"",
+            f"💡 风险警示:",
+            f"   • 🚨 <b>高风险！主力加速离场</b>",
+            f"   • 📉 价格可能面临大幅下跌",
+            f"   • 🛑 已持仓建议及时止损离场",
+            f"   • ⛔ 不建议抄底，等待企稳",
             f"",
             f"{tag}",
             f"━━━━━━━━━",
