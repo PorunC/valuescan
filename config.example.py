@@ -16,38 +16,6 @@ TELEGRAM_CHAT_ID = ""
 # 是否发送 TG 消息
 SEND_TG_IN_MODE_1 = True
 
-# ==================== Binance API 配置（合约交易）====================
-# Binance API Key（在 Binance 账户设置中创建）
-# 注意：需要在 API 管理中开启 "期货交易" 权限
-BINANCE_API_KEY = ""
-
-# Binance API Secret
-BINANCE_API_SECRET = ""
-
-# 是否使用测试网络（True: 测试网, False: 正式网）
-# 合约测试网地址: https://testnet.binancefuture.com/
-BINANCE_TESTNET = True
-
-# 是否启用自动交易（谨慎开启！）
-BINANCE_TRADE_ENABLED = False
-
-# 每次开仓使用的保证金（USDT）
-# 注意：这是保证金金额，实际名义价值 = 保证金 × 杠杆
-BINANCE_TRADE_AMOUNT_USDT = 20
-
-# 杠杆倍数（1-125）
-# 建议：新手 1-5x，有经验 5-10x，高风险 10-20x
-# 警告：高杠杆高风险，可能导致快速爆仓
-BINANCE_LEVERAGE = 5
-
-# 最小订单金额（USDT）- Binance 合约最低限制
-BINANCE_MIN_ORDER_USDT = 5
-
-# 信号有效时间窗口（分钟）
-# 在此时间内同时收到 Alpha 和 FOMO 信号才会执行买入
-# 例如：30 表示 30 分钟内必须同时收到两个信号
-BINANCE_SIGNAL_TIMEOUT_MINUTES = 30
-
 # ==================== 浏览器配置 ====================
 # Chrome 远程调试端口
 CHROME_DEBUG_PORT = 9222

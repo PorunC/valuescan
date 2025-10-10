@@ -5,6 +5,3 @@ DrissionPage>=4.0.0
 
 # HTTP 请求
 requests>=2.31.0
-
-# 加密相关（Binance API 签名）
-# 注：hashlib 和 hmac 是 Python 标准库，无需安装
