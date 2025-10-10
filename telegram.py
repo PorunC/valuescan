@@ -84,13 +84,13 @@ def _format_risk_alert(item, content, msg_type_name):
     - predictType 5: AI 开始追踪潜力代币
     - predictType 7: 风险增加，主力大量减持
     - predictType 8: 下跌趋势减弱，追踪结束
-    - predictType 16: 追踪后涨幅超过20%（上涨止盈）
-    - predictType 19: 追踪后跌幅超过15%（下跌止盈）
+    - predictType 16: 追踪后涨幅达到盈利目标（10%+，上涨止盈）
+    - predictType 19: 追踪后跌幅达到止损位（15%+，下跌止盈）
     - predictType 24: 价格高点风险（疑似顶部）
     - predictType 28: 主力增持加速（上涨机会）
     - predictType 29: 主力持仓减少加速
-    - predictType 30: 追踪后涨幅5-20%（保护本金）
-    - predictType 31: 追踪后跌幅超过5%（保护本金）
+    - predictType 30: 追踪后涨幅5-10%（保护本金）
+    - predictType 31: 追踪后跌幅5-15%（保护本金）
     """
     from config import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
     
