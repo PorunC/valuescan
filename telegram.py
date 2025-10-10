@@ -86,6 +86,7 @@ def _format_risk_alert(item, content, msg_type_name):
     - predictType 16: 追踪后涨幅超过20%（上涨止盈）
     - predictType 19: 追踪后跌幅超过15%（下跌止盈）
     - predictType 24: 价格高点风险（疑似顶部）
+    - predictType 28: 主力增持加速（上涨机会）
     - predictType 29: 主力持仓减少加速
     - predictType 31: 追踪后跌幅超过5%（保护本金）
     """
@@ -221,6 +222,49 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • 💰 已持仓建议分批止盈",
             f"   • 🛑 不建议追高或抄底",
             f"   • 👀 密切关注后续走势",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
+    elif predict_type == 28:
+        # 主力增持加速（上涨机会）
+        emoji = "🟢"
+        title = f"<b>${symbol} 主力增持加速</b>"
+        tag = "#主力增持加速"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"✅ 疑似主力<b>大量买入</b>中",
+            f"📈 可能有上涨行情",
+            f"💵 现价: <b>${price}</b>",
+        ]
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+        
+        # 显示追踪期涨幅和跌幅
+        if gains and gains > 0:
+            message_parts.append(f"📈 追踪涨幅: <code>+{gains:.2f}%</code>")
+        if content.get('decline', 0) > 0:
+            decline = content.get('decline', 0)
+            message_parts.append(f"📉 回调幅度: <code>-{decline:.2f}%</code>")
+        
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • 🚀 <b>市场情绪乐观</b>",
+            f"   • 📊 可考虑适当参与",
+            f"   • ⚠️ 注意控制仓位",
+            f"   • 🎯 设置止盈止损位",
+            f"   • 💰 高位注意分批减仓",
             f"",
             f"{tag}",
             f"━━━━━━━━━",
