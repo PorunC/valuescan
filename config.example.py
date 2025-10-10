@@ -9,6 +9,7 @@ ValuesCan API 监听工具配置文件示例
 TELEGRAM_BOT_TOKEN = ""
 
 # Telegram 目标用户 ID
+# 频道 ID 格式：-100 开头的数字
 # 获取方式: 在 Telegram 中找到 @userinfobot，发送任意消息获取您的 ID
 TELEGRAM_CHAT_ID = ""
 
