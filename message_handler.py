@@ -62,9 +62,9 @@ def print_message_details(item, idx=None):
     
     # 打印基本信息
     if idx is not None:
-        logger.info(f"\n  [{idx}] {item.get('title', 'N/A')} - {msg_type} {msg_type_name}")
+        logger.info(f"  [{idx}] {item.get('title', 'N/A')} - {msg_type} {msg_type_name}")
     else:
-        logger.info(f"\n  {item.get('title', 'N/A')} - {msg_type} {msg_type_name}")
+        logger.info(f"  {item.get('title', 'N/A')} - {msg_type} {msg_type_name}")
     
     logger.info(f"      类型代码: {msg_type}")
     logger.info(f"      ID: {item.get('id', 'N/A')}")
@@ -111,7 +111,7 @@ def process_message_item(item, idx=None, send_to_telegram=False):
     
     # 发送到 Telegram（如果启用）
     if send_to_telegram:
-        logger.info(f"\n  📤 发送消息到 Telegram...")
+        logger.info(f"📤 发送消息到 Telegram...")
         telegram_message = format_message_for_telegram(item)
         send_telegram_message(telegram_message)
 
@@ -150,20 +150,20 @@ def process_response_data(response_data, send_to_telegram=False, seen_ids=None):
             new_count = len(new_messages)
             duplicate_count = total_count - new_count
             
-            logger.info(f"\n  消息统计: 总共 {total_count} 条, 新消息 {new_count} 条, 重复 {duplicate_count} 条")
+            logger.info(f"  消息统计: 总共 {total_count} 条, 新消息 {new_count} 条, 重复 {duplicate_count} 条")
             logger.info(f"  已记录消息 ID 数量: {len(seen_ids)}")
             
             if new_messages:
-                logger.info(f"\n  【新消息列表】:")
+                logger.info(f"  【新消息列表】:")
                 for idx, item in enumerate(new_messages, 1):
                     process_message_item(item, idx, send_to_telegram)
             else:
-                logger.info(f"\n  本次无新消息（所有消息都已显示过）")
+                logger.info(f"  本次无新消息（所有消息都已显示过）")
             
             return new_count
         else:
             # 不去重，显示所有消息
-            logger.info(f"\n  消息列表 (共 {total_count} 条):")
+            logger.info(f"  消息列表 (共 {total_count} 条):")
             for idx, item in enumerate(response_data['data'], 1):
                 process_message_item(item, idx, send_to_telegram)
             return total_count
