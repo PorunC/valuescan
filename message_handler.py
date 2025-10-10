@@ -143,17 +143,22 @@ def process_message_item(item, idx=None, send_to_telegram=False):
             if msg_id:
                 if mark_message_processed(msg_id, msg_type, symbol, title, created_time):
                     logger.info(f"✅ 消息 ID {msg_id} 已记录到数据库")
+                    return True  # 发送并记录成功
                 else:
                     logger.warning(f"⚠️ 消息 ID {msg_id} 记录到数据库失败")
+                    return False  # 记录失败，下次重试
+            return True  # 没有 msg_id，但发送成功
         else:
             logger.warning(f"⚠️ Telegram 发送失败，消息 ID {msg_id} 未记录到数据库")
+            return False  # 发送失败，下次重试
     else:
         # 即使不发送 Telegram，也记录到数据库（避免下次重复处理）
         if msg_id:
             if mark_message_processed(msg_id, msg_type, symbol, title, created_time):
                 logger.info(f"✅ 消息 ID {msg_id} 已记录到数据库（未发送 TG）")
-    
-    return True
+                return True  # 记录成功
+            return False  # 记录失败
+        return True  # 没有 msg_id，直接返回成功
 
 
 def process_response_data(response_data, send_to_telegram=False, seen_ids=None):
@@ -200,10 +205,8 @@ def process_response_data(response_data, send_to_telegram=False, seen_ids=None):
                     seen_ids.add(msg_id)
                 continue
             
-            # 新消息
+            # 新消息（注意：这里不提前添加到 seen_ids，等发送成功后再添加）
             new_messages.append(item)
-            if seen_ids is not None:
-                seen_ids.add(msg_id)
         
         new_count = len(new_messages)
         duplicate_count = duplicate_in_batch + duplicate_in_db
@@ -220,7 +223,12 @@ def process_response_data(response_data, send_to_telegram=False, seen_ids=None):
             logger.info(f"  【新消息列表】:")
             # 倒序发送消息（最新的消息最先发送到 Telegram）
             for idx, item in enumerate(reversed(new_messages), 1):
-                process_message_item(item, idx, send_to_telegram)
+                # 处理消息，成功后才添加到 seen_ids（防止发送失败时被标记为已处理）
+                success = process_message_item(item, idx, send_to_telegram)
+                if success and seen_ids is not None:
+                    msg_id = item.get('id')
+                    if msg_id:
+                        seen_ids.add(msg_id)
         else:
             logger.info(f"  本次无新消息（所有消息都已处理过）")
         
