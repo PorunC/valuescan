@@ -20,6 +20,11 @@ SEND_TG_IN_MODE_1 = True
 # Chrome 远程调试端口
 CHROME_DEBUG_PORT = 9222
 
+# Chrome 自动重启间隔（小时）
+# 设置为 0 表示不自动重启
+# 建议值：2-4 小时，可以有效防止内存泄漏导致的卡顿
+CHROME_AUTO_RESTART_HOURS = 3
+
 # ==================== API 配置 ====================
 # 监听的 API 路径（部分匹配）
 API_PATH = "api/account/message/getWarnMessage"
