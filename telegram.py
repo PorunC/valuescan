@@ -80,6 +80,7 @@ def _format_risk_alert(item, content, msg_type_name):
     格式化 AI 追踪告警（type 100）
     根据 predictType 区分不同场景：
     - predictType 4: 主力减持风险
+    - predictType 16: 追踪后涨幅超过20%（上涨止盈）
     - predictType 19: 追踪后跌幅超过15%（下跌止盈）
     - predictType 31: 追踪后跌幅超过5%（保护本金）
     """
@@ -90,6 +91,7 @@ def _format_risk_alert(item, content, msg_type_name):
     change_24h = content.get('percentChange24h', 0)
     predict_type = content.get('predictType', 0)
     risk_decline = content.get('riskDecline', 0)
+    gains = content.get('gains', 0)
     rebound = content.get('rebound', 0)
     scoring = content.get('scoring', 0)
     
@@ -117,6 +119,37 @@ def _format_risk_alert(item, content, msg_type_name):
             f"💡 操作建议:",
             f"   • 谨慎追高，等待企稳",
             f"   • 已持仓可考虑减仓观望",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
+    elif predict_type == 16:
+        # 追踪后涨幅超过20% - 上涨止盈
+        emoji = "🎉"
+        title = f"<b>${symbol} 上涨止盈信号</b>"
+        gains_desc = f"AI追踪后上涨，涨幅已达 <b>{gains:.2f}%</b> 🚀"
+        tag = "#上涨止盈"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"✅ {gains_desc}",
+            f"💵 现价: <b>${price}</b>",
+            f"📈 24H涨幅: <code>+{change_24h:.2f}%</code>",
+        ]
+        
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • <b>🎯 移动止盈，锁定利润</b>",
+            f"   • 📊 可考虑分批止盈离场",
+            f"   • 🛡️ 避免回吐过多收益",
+            f"   • ⏰ 保持警惕，注意回调风险",
             f"",
             f"{tag}",
             f"━━━━━━━━━",
