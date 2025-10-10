@@ -616,7 +616,7 @@ def _format_risk_alert(item, content, msg_type_name):
         
         message_parts = [
             f"{emoji} {title}",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"🤖 AI实时追踪已结束",
             f"💵 现价: <b>${price}</b>",
         ]
@@ -642,7 +642,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"   • 如有持仓请自行评估风险",
             f"",
             f"{tag}",
-            f"━━━━━━━━━━━━━━━━━━━",
+            f"━━━━━━━━━",
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
