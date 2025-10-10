@@ -52,15 +52,6 @@ def capture_api_request():
             logger.info(f"\n请求 URL: {packet.url}")
             logger.info(f"请求方法: {packet.method}")
             
-            # 请求头
-            logger.info("\n【请求头】")
-            try:
-                headers = packet.request.headers if hasattr(packet, 'request') else packet.headers if hasattr(packet, 'headers') else {}
-                for key, value in headers.items():
-                    logger.info(f"  {key}: {value}")
-            except Exception as e:
-                logger.warning(f"  无法获取请求头: {e}")
-            
             # 请求体
             try:
                 request_body = packet.request.body if hasattr(packet, 'request') else packet.postData if hasattr(packet, 'postData') else None
