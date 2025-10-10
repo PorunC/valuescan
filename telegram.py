@@ -88,6 +88,7 @@ def _format_risk_alert(item, content, msg_type_name):
     - predictType 24: 价格高点风险（疑似顶部）
     - predictType 28: 主力增持加速（上涨机会）
     - predictType 29: 主力持仓减少加速
+    - predictType 30: 追踪后涨幅5-20%（保护本金）
     - predictType 31: 追踪后跌幅超过5%（保护本金）
     """
     from config import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
@@ -399,8 +400,48 @@ def _format_risk_alert(item, content, msg_type_name):
             f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
         ])
     
+    elif predict_type == 30:
+        # 追踪后涨幅5-20% - 保护本金（上涨中的提醒）
+        emoji = "💚"
+        title = f"<b>${symbol} 盈利保护提醒</b>"
+        tag = "#保护本金"
+        
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"✅ AI追踪后涨幅达 <b>{gains:.2f}%</b>",
+            f"💵 现价: <b>${price}</b>",
+        ]
+        
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+        
+        # 显示回调幅度
+        if content.get('decline', 0) > 0:
+            decline = content.get('decline', 0)
+            message_parts.append(f"📉 回调幅度: <code>-{decline:.2f}%</code>")
+        
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+        
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • 💰 <b>已有盈利，注意保护本金</b>",
+            f"   • 🎯 可设置跟踪止损保护利润",
+            f"   • 📊 控制仓位，不要过度追高",
+            f"   • ⚠️ 观察能否突破继续上涨",
+            f"   • 🛡️ 如回调加大，及时止盈",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+        ])
+    
     elif predict_type == 31:
-        # 追踪后跌幅5-15% - 保护本金
+        # 追踪后跌幅5-15% - 保护本金（下跌中的警示）
         emoji = "🟠"
         title = f"<b>${symbol} 本金保护警示</b>"
         risk_desc = f"AI追踪后下跌，跌幅已达 {risk_decline:.2f}%"
