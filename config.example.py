@@ -21,11 +21,6 @@ SEND_TG_IN_MODE_1 = True
 # Chrome 远程调试端口
 CHROME_DEBUG_PORT = 9222
 
-# Chrome 自动重启间隔（小时）
-# 设置为 0 表示不自动重启
-# 建议值：2-4 小时，可以有效防止内存泄漏导致的卡顿
-CHROME_AUTO_RESTART_HOURS = 3
-
 # 无头模式（不显示浏览器窗口）
 # True: 后台运行，不显示浏览器界面（推荐服务器使用）
 # False: 显示浏览器窗口（需要手动登录账号）

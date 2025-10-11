@@ -5,3 +5,6 @@ DrissionPage>=4.0.0
 
 # HTTP 请求
 requests>=2.31.0
+
+# 进程管理（可选，用于显示进程信息）
+psutil>=5.9.0

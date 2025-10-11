@@ -34,8 +34,8 @@ def main():
         logger.info("确保 Chrome 已用调试模式启动 (端口 {})".format(CHROME_DEBUG_PORT))
         logger.info("如果还未启动，请运行: python start_with_chrome.py")
     else:
-        logger.info(f"  Chrome数据: ./chrome-headless-profile")
-        logger.info("⚠️  无头模式下需要先登录账号，请先用有头模式登录后再切换")
+        logger.info(f"  Chrome数据: ./chrome-debug-profile")
+        logger.info("⚠️  无头模式使用相同的用户目录，共享登录状态")
     
     logger.info("正在连接并开始监听...")
     
