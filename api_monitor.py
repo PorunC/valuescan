@@ -58,12 +58,30 @@ def _kill_chrome_processes():
                 timeout=5
             )
         elif system in ["Linux", "Darwin"]:
-            # Linux/macOS: 使用 pkill
-            subprocess.run(
-                ['pkill', '-f', 'chrome|chromium'],
-                capture_output=True,
-                timeout=5
-            )
+            # Linux/macOS: 更精确地匹配 Chrome/Chromium 可执行文件
+            # 避免误杀包含 'chrome' 关键字的其他进程（如 Python 脚本）
+            try:
+                # 方法1: 使用 pgrep 找到进程，然后用 kill 关闭
+                result = subprocess.run(
+                    ['pgrep', '-f', '(google-chrome|chromium-browser|chromium).*--'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.stdout.strip():
+                    pids = result.stdout.strip().split('\n')
+                    for pid in pids:
+                        try:
+                            subprocess.run(['kill', '-9', pid], timeout=2)
+                        except:
+                            pass
+            except:
+                # 方法2: 如果 pgrep 失败，尝试直接 pkill（更保守的模式）
+                subprocess.run(
+                    ['pkill', '-9', '-f', '(google-chrome|chromium-browser|chromium).*--'],
+                    capture_output=True,
+                    timeout=5
+                )
         
         time.sleep(2)
         logger.info("Chrome 进程已清理")

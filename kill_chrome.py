@@ -47,17 +47,40 @@ def kill_all_chrome_processes():
                     logger.error(f"关闭 {process_name} 时发生错误: {e}")
         
         elif system in ["Linux", "Darwin"]:
-            # Linux/macOS: 使用 pkill
+            # Linux/macOS: 使用更精确的进程匹配，避免误杀 Python 脚本
             try:
+                # 尝试使用 pgrep + kill 更精确匹配 Chrome 可执行文件
                 result = subprocess.run(
-                    ['pkill', '-9', '-f', 'chrome|chromium|chromedriver'],
+                    ['pgrep', '-f', '(google-chrome|chromium-browser|chromium|chromedriver).*--'],
                     capture_output=True,
-                    text=True
+                    text=True,
+                    timeout=5
                 )
-                if result.returncode == 0:
-                    logger.info("✅ Chrome 进程已关闭")
+                
+                if result.stdout.strip():
+                    # 找到进程，逐个 kill
+                    pids = result.stdout.strip().split('\n')
+                    for pid in pids:
+                        try:
+                            subprocess.run(['kill', '-9', pid], timeout=2)
+                        except Exception as e:
+                            logger.warning(f"关闭进程 {pid} 失败: {e}")
+                    logger.info(f"✅ 已关闭 {len(pids)} 个 Chrome 进程")
                 else:
                     logger.info("ℹ️  未找到运行中的 Chrome 进程")
+                    
+            except FileNotFoundError:
+                # 如果没有 pgrep，回退到 pkill（但仍使用更精确的模式）
+                try:
+                    subprocess.run(
+                        ['pkill', '-9', '-f', '(google-chrome|chromium-browser|chromium|chromedriver).*--'],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    logger.info("✅ Chrome 进程已关闭")
+                except Exception as e:
+                    logger.error(f"关闭 Chrome 进程时发生错误: {e}")
             except Exception as e:
                 logger.error(f"关闭 Chrome 进程时发生错误: {e}")
         
