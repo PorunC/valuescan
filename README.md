@@ -266,18 +266,48 @@ python3 start_with_chrome.py
 
 ### 快速部署步骤
 
-#### 1. 安装 Chromium/Chrome
+#### 1. 安装系统依赖和 Chromium/Chrome
 
 ```bash
 # Ubuntu/Debian
 sudo apt update
+
+# 安装基础工具
+sudo apt install -y wget curl unzip git
+
+# 安装 Chromium 浏览器
 sudo apt install -y chromium-browser
 
+# 安装 Chrome 所需的系统库
+sudo apt install -y \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils
+
 # CentOS/RHEL
+sudo yum update -y
+
+# 安装基础工具
+sudo yum install -y wget curl unzip git
+
+# 安装 Chromium
 sudo yum install -y chromium
 
 # 验证安装
 chromium-browser --version
+# 或
+chromium --version
 ```
 
 #### 2. 安装 Python 依赖
@@ -381,8 +411,18 @@ sudo journalctl -u valuescan -f
 
 #### 问题 1: 缺少系统依赖
 
+**症状**：
+```
+error while loading shared libraries: xxx.so
+```
+
+**解决方案**：
+
 ```bash
-# 安装完整依赖
+# Ubuntu/Debian - 安装基础工具
+sudo apt install -y wget curl unzip git python3 python3-pip python3-venv
+
+# Ubuntu/Debian - 安装 Chrome 运行库
 sudo apt install -y \
     fonts-liberation \
     libasound2 \
@@ -398,6 +438,11 @@ sudo apt install -y \
     libxdamage1 \
     libxrandr2 \
     xdg-utils
+
+# CentOS/RHEL
+sudo yum install -y wget curl unzip git python3 python3-pip \
+    liberation-fonts alsa-lib atk cups-libs dbus-libs \
+    libdrm libXcomposite libXdamage libXrandr gtk3 nss
 ```
 
 #### 问题 2: 显示相关错误
