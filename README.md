@@ -37,7 +37,9 @@ pip install DrissionPage requests psutil
 # Windows
 copy config.example.py config.py
 
-# Linux/macOS
+# Linu## 🔗 相关链接
+
+### 外部资源
 cp config.example.py config.py
 ```
 
