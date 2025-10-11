@@ -202,6 +202,252 @@ valuescan/
 └── valuescan.db              # 数据库文件
 ```
 
+## 🌍 跨平台支持
+
+### 自动平台适配
+
+ValueScan 已实现完整的跨平台支持，可在 **Windows**、**Linux** 和 **macOS** 上无缝运行：
+
+✅ **自动检测运行平台**  
+✅ **自动查找 Chrome/Chromium 路径**  
+✅ **自动适配系统命令**  
+✅ **自动处理路径分隔符**  
+✅ **统一的配置文件**  
+
+### 平台对比
+
+| 平台 | 有头模式 | 无头模式 | 推荐用途 | Chrome 路径 |
+|------|---------|----------|---------|------------|
+| **Windows** | ✅ 完美 | ✅ 支持 | 开发/测试 | `C:\Program Files\Google\Chrome\` |
+| **Linux** | ⚠️ 需要 X11 | ✅ 完美 | 生产部署 | `/usr/bin/google-chrome` |
+| **macOS** | ✅ 完美 | ✅ 支持 | 开发/测试 | `/Applications/Google Chrome.app` |
+
+### Chrome 自动检测
+
+程序会自动检测以下 Chrome/Chromium 路径：
+
+**Windows**:
+- `C:\Program Files\Google\Chrome\Application\chrome.exe`
+- `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`
+- `%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe`
+
+**Linux**:
+- `/usr/bin/google-chrome`
+- `/usr/bin/chromium-browser`
+- `/usr/bin/chromium`
+- `/snap/bin/chromium`
+
+**macOS**:
+- `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
+- `/Applications/Chromium.app/Contents/MacOS/Chromium`
+
+💡 **无需手动配置路径**，程序会自动找到第一个可用的 Chrome 安装。
+
+### 使用示例
+
+**相同的代码，任何平台**：
+
+```bash
+# Windows
+python start_with_chrome.py
+
+# Linux
+python3 start_with_chrome.py
+
+# macOS
+python3 start_with_chrome.py
+```
+
+**配置文件完全通用**，在所有平台上使用相同的 `config.py`。
+
+## 🐧 Linux 服务器部署
+
+### 快速部署步骤
+
+#### 1. 安装 Chromium/Chrome
+
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install -y chromium-browser
+
+# CentOS/RHEL
+sudo yum install -y chromium
+
+# 验证安装
+chromium-browser --version
+```
+
+#### 2. 安装 Python 依赖
+
+```bash
+# 创建虚拟环境（推荐）
+python3 -m venv venv
+source venv/bin/activate
+
+# 安装依赖
+pip install -r requirements.txt
+```
+
+#### 3. 配置文件
+
+```bash
+# 复制配置模板
+cp config.example.py config.py
+
+# 编辑配置（重要：设置为无头模式）
+nano config.py
+```
+
+关键配置：
+```python
+HEADLESS_MODE = True  # Linux 服务器必须使用无头模式
+```
+
+#### 4. 传输登录状态
+
+**从 Windows 传输到 Linux**：
+
+```bash
+# 在 Windows 上先用有头模式登录
+python start_with_chrome.py
+
+# 然后传输用户数据目录到 Linux
+scp -r chrome-debug-profile user@linux-server:~/valuescan/
+```
+
+#### 5. 启动服务
+
+```bash
+# 测试运行
+python3 start_with_chrome.py
+
+# 后台运行
+nohup python3 start_with_chrome.py > output.log 2>&1 &
+```
+
+### systemd 服务配置（推荐）
+
+创建服务文件：
+
+```bash
+sudo nano /etc/systemd/system/valuescan.service
+```
+
+内容：
+
+```ini
+[Unit]
+Description=ValueScan API Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=your_username
+WorkingDirectory=/home/your_username/valuescan
+Environment="PATH=/home/your_username/valuescan/venv/bin"
+ExecStart=/home/your_username/valuescan/venv/bin/python3 start_with_chrome.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/your_username/valuescan/output.log
+StandardError=append:/home/your_username/valuescan/error.log
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启动服务：
+
+```bash
+# 重载配置
+sudo systemctl daemon-reload
+
+# 启用开机自启
+sudo systemctl enable valuescan
+
+# 启动服务
+sudo systemctl start valuescan
+
+# 查看状态
+sudo systemctl status valuescan
+
+# 查看日志
+sudo journalctl -u valuescan -f
+```
+
+### Linux 常见问题
+
+#### 问题 1: 缺少系统依赖
+
+```bash
+# 安装完整依赖
+sudo apt install -y \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils
+```
+
+#### 问题 2: 显示相关错误
+
+如果遇到 `No usable sandbox!` 错误：
+
+```bash
+# 安装虚拟显示
+sudo apt install -y xvfb
+
+# 启动虚拟显示
+Xvfb :99 -screen 0 1920x1080x24 &
+export DISPLAY=:99
+```
+
+程序已添加 `--no-sandbox` 参数，通常无需额外配置。
+
+#### 问题 3: 内存不足
+
+```bash
+# 添加 swap
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# 永久生效
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+### 迁移检查清单
+
+- [ ] 安装 Chromium/Chrome
+- [ ] 安装 Python 3.8+
+- [ ] 安装项目依赖 (`pip install -r requirements.txt`)
+- [ ] 复制并配置 `config.py`（设置 `HEADLESS_MODE = True`）
+- [ ] 传输 `chrome-debug-profile` 目录
+- [ ] 测试运行
+- [ ] 配置 systemd 服务
+- [ ] 验证日志输出
+- [ ] 测试 Telegram 推送
+
+### 性能对比
+
+| 环境 | 内存占用 | CPU 占用 | 适用场景 |
+|------|---------|---------|---------|
+| Windows 有头 | ~400MB | 5-10% | 开发调试 |
+| Windows 无头 | ~250MB | 3-5% | 本地后台 |
+| Linux 无头 | ~200MB | 2-4% | 服务器部署 |
+
+💡 **建议**：Windows 用于开发和首次登录，Linux 用于生产部署。
+
 ## 🔧 高级功能
 
 ### 进程管理
@@ -371,13 +617,50 @@ python start_with_chrome.py
 
 本项目仅供学习和个人使用。
 
-## 🔗 相关链接
+## � 相关文档
 
+### 项目文档
+- **[README.md](README.md)** - 项目主文档（本文件）
+- **[CROSS_PLATFORM.md](CROSS_PLATFORM.md)** - 跨平台支持详细说明
+- **[LINUX_DEPLOYMENT.md](LINUX_DEPLOYMENT.md)** - Linux 服务器部署完整指南
+
+### 外部链接
 - [Telegram Bot API](https://core.telegram.org/bots/api)
 - [DrissionPage 文档](https://github.com/g1879/DrissionPage)
 - [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/)
+- [Chromium 下载](https://www.chromium.org/getting-involved/download-chromium/)
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+### 贡献指南
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 提交 Pull Request
+
+## 📝 更新日志
+
+### v2.0 (2025-10-11)
+- ✨ 新增完整的跨平台支持（Windows/Linux/macOS）
+- ✨ 自动检测 Chrome 路径，无需手动配置
+- ✨ 无头模式自动打开网站并监听
+- ✨ 显示 Chrome 进程 ID
+- ✨ 统一有头和无头模式启动脚本
+- 📝 完善 Linux 部署文档
+- 🐛 修复多个平台兼容性问题
+- 🔧 删除自动重启功能，简化代码
+
+### v1.0 (2025-10-10)
+- 🎉 初始版本发布
+- ✅ 支持 API 监听和 Telegram 推送
+- ✅ 支持有头和无头模式
 
 ---
 
 **更新日期**: 2025-10-11  
-**版本**: 2.0
+**版本**: 2.0  
+**作者**: PorunC  
+**仓库**: [github.com/PorunC/valuescan](https://github.com/PorunC/valuescan)

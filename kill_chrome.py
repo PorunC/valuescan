@@ -1,53 +1,77 @@
 """
 Chrome 进程管理工具
 用于关闭所有 Chrome 进程并以调试模式启动 Chrome
+支持 Windows、Linux 和 macOS
 """
 
 import subprocess
 import time
 import sys
 import os
+import platform
 from logger import logger
 from config import CHROME_DEBUG_PORT
 
 
 def kill_all_chrome_processes():
     """
-    关闭所有 Chrome 相关进程
+    关闭所有 Chrome 相关进程（跨平台支持）
     """
-    chrome_processes = ['chrome.exe', 'chromedriver.exe']
+    system = platform.system()
+    logger.info(f"正在关闭 Chrome 进程 (系统: {system})...")
     
-    for process_name in chrome_processes:
-        try:
-            logger.info(f"正在关闭 {process_name} 进程...")
-            # 使用 taskkill 强制关闭进程
-            result = subprocess.run(
-                ['taskkill', '/F', '/IM', process_name, '/T'],
-                capture_output=True,
-                text=True,
-                encoding='gbk'  # Windows 中文系统使用 gbk 编码
-            )
+    try:
+        if system == "Windows":
+            # Windows: 使用 taskkill
+            chrome_processes = ['chrome.exe', 'chromedriver.exe']
             
-            if result.returncode == 0:
-                logger.info(f"✅ {process_name} 进程已关闭")
-            else:
-                # 如果进程不存在，taskkill 会返回非0，但这不是错误
-                if "找不到" in result.stderr or "not found" in result.stderr.lower():
-                    logger.info(f"ℹ️  未找到运行中的 {process_name} 进程")
-                else:
-                    logger.warning(f"关闭 {process_name} 时出现提示: {result.stderr.strip()}")
+            for process_name in chrome_processes:
+                try:
+                    logger.info(f"正在关闭 {process_name}...")
+                    result = subprocess.run(
+                        ['taskkill', '/F', '/IM', process_name, '/T'],
+                        capture_output=True,
+                        text=True,
+                        encoding='gbk'
+                    )
                     
-        except Exception as e:
-            logger.error(f"关闭 {process_name} 时发生错误: {e}")
-    
-    # 等待进程完全关闭
-    time.sleep(2)
-    logger.info("所有 Chrome 进程已清理完成")
+                    if result.returncode == 0:
+                        logger.info(f"✅ {process_name} 进程已关闭")
+                    else:
+                        if "找不到" in result.stderr or "not found" in result.stderr.lower():
+                            logger.info(f"ℹ️  未找到运行中的 {process_name} 进程")
+                        else:
+                            logger.warning(f"关闭 {process_name} 时出现提示: {result.stderr.strip()}")
+                            
+                except Exception as e:
+                    logger.error(f"关闭 {process_name} 时发生错误: {e}")
+        
+        elif system in ["Linux", "Darwin"]:
+            # Linux/macOS: 使用 pkill
+            try:
+                result = subprocess.run(
+                    ['pkill', '-9', '-f', 'chrome|chromium|chromedriver'],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    logger.info("✅ Chrome 进程已关闭")
+                else:
+                    logger.info("ℹ️  未找到运行中的 Chrome 进程")
+            except Exception as e:
+                logger.error(f"关闭 Chrome 进程时发生错误: {e}")
+        
+        # 等待进程完全关闭
+        time.sleep(2)
+        logger.info("所有 Chrome 进程已清理完成")
+        
+    except Exception as e:
+        logger.error(f"清理进程时发生错误: {e}")
 
 
 def start_chrome_debug_mode(port=None):
     """
-    以调试模式启动 Chrome
+    以调试模式启动 Chrome（跨平台支持）
     
     Args:
         port: 远程调试端口，默认使用配置文件中的端口
@@ -55,14 +79,33 @@ def start_chrome_debug_mode(port=None):
     if port is None:
         port = CHROME_DEBUG_PORT
     
-    # 常见的 Chrome 安装路径
-    chrome_paths = [
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
-        os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
-        os.path.expandvars(r"%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe"),
-    ]
+    system = platform.system()
+    
+    # 不同平台的 Chrome 安装路径
+    if system == "Windows":
+        chrome_paths = [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe"),
+        ]
+    elif system == "Linux":
+        chrome_paths = [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/chromium",
+            "/snap/bin/chromium",
+        ]
+    elif system == "Darwin":  # macOS
+        chrome_paths = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ]
+    else:
+        logger.error(f"❌ 不支持的操作系统: {system}")
+        return False
     
     # 查找 Chrome 可执行文件
     chrome_exe = None
@@ -72,7 +115,7 @@ def start_chrome_debug_mode(port=None):
             break
     
     if not chrome_exe:
-        logger.error("❌ 未找到 Chrome 浏览器，请确保已安装 Chrome")
+        logger.error(f"❌ 未找到 Chrome 浏览器 (系统: {system})")
         logger.error("尝试的路径:")
         for path in chrome_paths:
             logger.error(f"  - {path}")
