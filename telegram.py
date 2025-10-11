@@ -5,9 +5,30 @@ Telegram 消息发送模块
 
 import json
 import time
+from datetime import datetime, timezone, timedelta
 import requests
 from logger import logger
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+
+# 北京时区 (UTC+8)
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+
+def get_beijing_time_str(timestamp_ms, format_str='%H:%M:%S'):
+    """
+    将时间戳转换为北京时间字符串
+    
+    Args:
+        timestamp_ms: 毫秒级时间戳
+        format_str: 时间格式字符串，默认为 '%H:%M:%S'
+    
+    Returns:
+        str: 格式化后的北京时间字符串（带UTC+8标识）
+    """
+    if not timestamp_ms:
+        return 'N/A'
+    dt = datetime.fromtimestamp(timestamp_ms / 1000, tz=BEIJING_TZ)
+    return dt.strftime(format_str) + ' (UTC+8)'
 
 
 def send_telegram_message(message_text):
@@ -159,7 +180,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 24:
@@ -199,7 +220,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 5:
@@ -243,7 +264,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 7:
@@ -285,7 +306,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 28:
@@ -328,7 +349,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 29:
@@ -366,7 +387,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 4:
@@ -395,7 +416,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 16:
@@ -426,7 +447,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 17:
@@ -463,7 +484,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 19:
@@ -493,7 +514,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 30:
@@ -533,7 +554,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 31:
@@ -565,7 +586,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     elif predict_type == 8:
@@ -605,7 +626,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     else:
@@ -643,7 +664,7 @@ def _format_risk_alert(item, content, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
     return "\n".join(message_parts)
@@ -723,7 +744,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
                 f"",
                 f"{tag}",
                 f"━━━━━━━━━",
-                f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+                f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
             ])
         else:
             # 没有涨幅数据 - 普通资金异常
@@ -750,7 +771,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
                 f"",
                 f"{tag}",
                 f"━━━━━━━━━",
-                f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+                f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
             ])
         
         return "\n".join(message_parts)
@@ -776,7 +797,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
             f"",
             f"{tag}",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ]
         
         return "\n".join(message_parts)
@@ -806,7 +827,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
             f"",
             f"💡 潜力标的，可关注后续表现",
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
         
         return "\n".join(message_parts)
@@ -834,7 +855,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         
         message_parts.extend([
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
         
         return "\n".join(message_parts)
@@ -877,7 +898,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         
         message_parts.extend([
             f"━━━━━━━━━",
-            f"🕐 {time.strftime('%H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}"
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
         
         return "\n".join(message_parts)

@@ -7,8 +7,26 @@ import json
 import time
 import platform
 import os
+from datetime import datetime, timezone, timedelta
 from DrissionPage import ChromiumPage, ChromiumOptions
 from logger import logger
+
+# 北京时区 (UTC+8)
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+
+def get_beijing_time_str(format_str='%Y-%m-%d %H:%M:%S'):
+    """
+    获取当前北京时间字符串
+    
+    Args:
+        format_str: 时间格式字符串，默认为 '%Y-%m-%d %H:%M:%S'
+    
+    Returns:
+        str: 格式化后的北京时间字符串（带UTC+8标识）
+    """
+    dt = datetime.now(tz=BEIJING_TZ)
+    return dt.strftime(format_str) + ' (UTC+8)'
 from config import API_PATH, CHROME_DEBUG_PORT, SEND_TG_IN_MODE_1
 from message_handler import process_response_data
 
@@ -233,7 +251,7 @@ def capture_api_request(headless=False):
             request_count += 1
             
             logger.info("="*60)
-            logger.info(f"捕获到第 {request_count} 个请求! ({time.strftime('%Y-%m-%d %H:%M:%S')})")
+            logger.info(f"捕获到第 {request_count} 个请求! ({get_beijing_time_str()})")
             logger.info("="*60)
             
             # 响应信息

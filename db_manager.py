@@ -7,6 +7,27 @@ import sys
 from database import MessageDatabase
 from logger import logger
 import time
+from datetime import datetime, timezone, timedelta
+
+# 北京时区 (UTC+8)
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+
+def get_beijing_time_str(timestamp, format_str='%Y-%m-%d %H:%M:%S'):
+    """
+    将时间戳转换为北京时间字符串
+    
+    Args:
+        timestamp: 秒级时间戳
+        format_str: 时间格式字符串，默认为 '%Y-%m-%d %H:%M:%S'
+    
+    Returns:
+        str: 格式化后的北京时间字符串（带UTC+8标识）
+    """
+    if not timestamp:
+        return 'N/A'
+    dt = datetime.fromtimestamp(timestamp, tz=BEIJING_TZ)
+    return dt.strftime(format_str) + ' (UTC+8)'
 
 
 def show_statistics():
@@ -25,8 +46,8 @@ def show_statistics():
             logger.info(f"  类型 {msg_type}: {count} 条")
     
     if 'earliest' in stats and 'latest' in stats:
-        earliest = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stats['earliest']))
-        latest = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stats['latest']))
+        earliest = get_beijing_time_str(stats['earliest'])
+        latest = get_beijing_time_str(stats['latest'])
         logger.info(f"\n最早记录: {earliest}")
         logger.info(f"最新记录: {latest}")
     
@@ -48,7 +69,7 @@ def show_recent_messages(limit=20):
     else:
         for msg in messages:
             msg_id, msg_type, symbol, title, processed_time, created_time = msg
-            processed_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(processed_time))
+            processed_str = get_beijing_time_str(processed_time)
             logger.info(f"\nID: {msg_id}")
             logger.info(f"  类型: {msg_type}")
             logger.info(f"  币种: {symbol or 'N/A'}")

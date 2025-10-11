@@ -5,10 +5,31 @@
 
 import json
 import time
+from datetime import datetime, timezone, timedelta
 from logger import logger
 from config import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
 from telegram import send_telegram_message, format_message_for_telegram
 from database import is_message_processed, mark_message_processed
+
+# 北京时区 (UTC+8)
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+
+def get_beijing_time_str(timestamp_ms, format_str='%Y-%m-%d %H:%M:%S'):
+    """
+    将时间戳转换为北京时间字符串
+    
+    Args:
+        timestamp_ms: 毫秒级时间戳
+        format_str: 时间格式字符串，默认为 '%Y-%m-%d %H:%M:%S'
+    
+    Returns:
+        str: 格式化后的北京时间字符串（带UTC+8标识）
+    """
+    if not timestamp_ms:
+        return 'N/A'
+    dt = datetime.fromtimestamp(timestamp_ms / 1000, tz=BEIJING_TZ)
+    return dt.strftime(format_str) + ' (UTC+8)'
 
 
 def get_message_type_name(msg_type):
@@ -70,7 +91,7 @@ def print_message_details(item, idx=None):
     logger.info(f"      类型代码: {msg_type}")
     logger.info(f"      ID: {item.get('id', 'N/A')}")
     logger.info(f"      已读: {'是' if item.get('isRead') else '否'}")
-    logger.info(f"      创建时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(item.get('createTime', 0)/1000))}")
+    logger.info(f"      创建时间: {get_beijing_time_str(item.get('createTime', 0))}")
     
     # 解析 content 字段
     if 'content' in item and item['content']:
