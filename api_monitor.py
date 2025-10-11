@@ -17,20 +17,38 @@ except ImportError:
     CHROME_AUTO_RESTART_HOURS = 0
 
 
-def capture_api_request():
+def capture_api_request(headless=False):
     """
     连接到调试模式的浏览器并监听 API 请求
     使用当前目录下的 Chrome 用户数据
+    
+    Args:
+        headless: 是否使用无头模式（不显示浏览器窗口）
     """
-    # 配置浏览器选项，连接到调试端口
+    # 配置浏览器选项
     try:
         co = ChromiumOptions()
-        co.set_local_port(CHROME_DEBUG_PORT)  # 连接到调试端口
-        page = ChromiumPage(addr_or_opts=co)
-        logger.info(f"成功连接到调试端口 {CHROME_DEBUG_PORT} 的浏览器")
+        
+        if headless:
+            # 无头模式：启动新的 Chrome 实例
+            logger.info("正在以无头模式启动 Chrome...")
+            co.headless(True)  # 启用无头模式
+            co.set_user_data_path('./chrome-headless-profile')  # 使用独立的用户数据目录
+            co.set_argument('--disable-gpu')
+            co.set_argument('--no-sandbox')
+            co.set_argument('--disable-dev-shm-usage')
+            page = ChromiumPage(addr_or_opts=co)
+            logger.info("✅ 成功启动无头模式 Chrome")
+        else:
+            # 有头模式：连接到已有的调试端口
+            co.set_local_port(CHROME_DEBUG_PORT)  # 连接到调试端口
+            page = ChromiumPage(addr_or_opts=co)
+            logger.info(f"成功连接到调试端口 {CHROME_DEBUG_PORT} 的浏览器")
+            
     except Exception as e:
-        logger.error(f"连接浏览器失败: {e}")
-        logger.error(f"请确保 Chrome 已在调试模式下运行 (端口 {CHROME_DEBUG_PORT})")
+        logger.error(f"{'启动' if headless else '连接'}浏览器失败: {e}")
+        if not headless:
+            logger.error(f"请确保 Chrome 已在调试模式下运行 (端口 {CHROME_DEBUG_PORT})")
         return
     
     # 启动监听

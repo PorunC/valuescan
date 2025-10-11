@@ -26,6 +26,11 @@ CHROME_DEBUG_PORT = 9222
 # 建议值：2-4 小时，可以有效防止内存泄漏导致的卡顿
 CHROME_AUTO_RESTART_HOURS = 3
 
+# 无头模式（不显示浏览器窗口）
+# True: 后台运行，不显示浏览器界面（推荐服务器使用）
+# False: 显示浏览器窗口（需要手动登录账号）
+HEADLESS_MODE = False
+
 # ==================== API 配置 ====================
 # 监听的 API 路径（部分匹配）
 API_PATH = "api/account/message/getWarnMessage"
