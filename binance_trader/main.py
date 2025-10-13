@@ -41,8 +41,7 @@ class AutoTradingSystem:
         # 1. 初始化信号聚合器
         self.signal_aggregator = SignalAggregator(
             time_window=config.SIGNAL_TIME_WINDOW,
-            min_score=config.MIN_SIGNAL_SCORE,
-            enable_fomo_intensify=config.ENABLE_FOMO_INTENSIFY
+            min_score=config.MIN_SIGNAL_SCORE
         )
 
         # 2. 初始化风险管理器
@@ -293,8 +292,7 @@ def test_signal_aggregation():
 
     aggregator = SignalAggregator(
         time_window=300,
-        min_score=0.6,
-        enable_fomo_intensify=True
+        min_score=0.6
     )
 
     # 模拟信号

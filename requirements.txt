@@ -17,7 +17,21 @@ psutil>=5.9.0
 # 币安 API 客户端
 python-binance>=1.0.19
 
+# python-binance 的依赖项（需要显式安装）
+aiohttp>=3.8.0          # 异步 HTTP 客户端
+dateparser>=1.1.0       # 日期解析
+pycryptodome>=3.15.0    # 加密库
+websockets>=10.0        # WebSocket 支持
+six>=1.16.0             # Python 2/3 兼容性
+
+# ============ 使用说明 ============
+# 安装方式：
+#   pip install -r requirements.txt
+#
+# 模块化安装：
+#   - 仅信号监控: pip install DrissionPage requests psutil
+#   - 完整系统: pip install -r requirements.txt
+#
 # 注意：
-# - 如果只使用信号监控模块，可以只安装上面的依赖
-# - 如果使用完整交易系统，需要安装所有依赖
-# - 建议使用: pip install -r requirements.txt
+#   - python-binance 在某些环境下不会自动安装其依赖
+#   - 如遇到 ModuleNotFoundError，请确认已安装上述所有依赖
