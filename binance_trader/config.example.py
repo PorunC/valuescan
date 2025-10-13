@@ -40,10 +40,12 @@ SIGNAL_TIME_WINDOW = 300  # 5分钟
 # 低于此评分的聚合信号将被忽略
 MIN_SIGNAL_SCORE = 0.6
 
-# 是否启用 FOMO 加剧信号 (Type 112)
-# True: Type 112 和 113 都视为 FOMO 信号
-# False: 仅 Type 113 视为 FOMO 信号
-ENABLE_FOMO_INTENSIFY = True
+# ⚠️ 重要：信号类型说明
+# Type 113 (FOMO) + Type 110 (Alpha) = 买入信号 ✅
+# Type 112 (FOMO加剧) = 风险信号，建议止盈 ⚠️
+#
+# FOMO加剧表示市场情绪过热，可能接近顶部，不适合开仓
+# 如果已有持仓，收到FOMO加剧信号应考虑止盈离场
 
 # ============ 风险管理配置 ============
 # 单个标的最大仓位比例（占总资金百分比）

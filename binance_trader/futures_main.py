@@ -42,8 +42,7 @@ class FuturesAutoTradingSystem:
         # 1. 初始化信号聚合器
         self.signal_aggregator = SignalAggregator(
             time_window=config.SIGNAL_TIME_WINDOW,
-            min_score=config.MIN_SIGNAL_SCORE,
-            enable_fomo_intensify=config.ENABLE_FOMO_INTENSIFY
+            min_score=config.MIN_SIGNAL_SCORE
         )
 
         # 2. 初始化风险管理器
@@ -150,7 +149,7 @@ class FuturesAutoTradingSystem:
         处理来自信号监控模块的信号
 
         Args:
-            message_type: ValueScan 消息类型 (110=Alpha, 113=FOMO)
+            message_type: ValueScan 消息类型 (110=Alpha, 113=FOMO, 112=FOMO加剧)
             message_id: 消息ID
             symbol: 交易标的（如 "BTC"）
             data: 原始消息数据
@@ -167,63 +166,100 @@ class FuturesAutoTradingSystem:
             data=data
         )
 
-        # 2. 如果匹配到聚合信号
+        # 2. 检查是否是风险信号（FOMO加剧）
+        if message_type == 112:  # FOMO加剧
+            self._handle_risk_signal(symbol)
+            return  # 风险信号不触发开仓
+
+        # 3. 如果匹配到聚合信号
         if confluence:
-            self.logger.warning("\n" + "🔥"*40)
-            self.logger.warning(f"CONFLUENCE SIGNAL DETECTED: {confluence}")
-            self.logger.warning("🔥"*40 + "\n")
+            self._handle_confluence_signal(confluence)
 
-            # 3. 检查是否启用自动交易
-            if not config.AUTO_TRADING_ENABLED:
-                self.logger.info("⏸️  Auto trading disabled, skipping execution (观察模式)")
-                return
+    def _handle_risk_signal(self, symbol: str):
+        """处理风险信号（FOMO加剧）- 建议止盈"""
+        binance_symbol = f"{symbol}{config.SYMBOL_SUFFIX}"
 
-            # 4. 获取当前价格
-            binance_symbol = f"{confluence.symbol}{config.SYMBOL_SUFFIX}"
-            current_price = self.trader.get_symbol_price(binance_symbol)
+        # 检查是否有持仓
+        if binance_symbol in self.trader.positions:
+            position = self.trader.positions[binance_symbol]
 
-            if not current_price:
-                self.logger.error(f"Failed to get price for {binance_symbol}, skipping trade")
-                return
-
-            # 5. 生成交易建议
-            recommendation = self.risk_manager.generate_trade_recommendation(
-                symbol=confluence.symbol,
-                current_price=current_price,
-                signal_score=confluence.score
+            self.logger.warning(
+                f"\n⚠️  RISK SIGNAL (FOMO加剧) detected for {symbol}!\n"
+                f"   市场情绪过热，建议止盈离场\n"
+                f"   Current PnL: {position.unrealized_pnl_percent:.2f}%\n"
             )
 
-            self.logger.info(f"Trade Recommendation: {recommendation.action} - {recommendation.reason}")
+            # 如果盈利，考虑部分止盈
+            if position.unrealized_pnl_percent > 0:
+                self.logger.warning(f"💡 建议平仓 50% 锁定利润")
 
-            # 6. 执行交易
-            if recommendation.action == "BUY":
-                success = self.trader.open_long_position(
-                    recommendation,
-                    symbol_suffix=config.SYMBOL_SUFFIX,
-                    leverage=config.LEVERAGE,
-                    margin_type=config.MARGIN_TYPE
-                )
+                if config.AUTO_TRADING_ENABLED:
+                    # 自动平仓50%
+                    self.trader.partial_close_position(
+                        binance_symbol,
+                        0.5,
+                        reason="FOMO加剧风险信号 - 自动止盈"
+                    )
+        else:
+            self.logger.info(f"⚠️  RISK signal for {symbol}, but no position held")
 
-                if success:
-                    self.logger.info("✅ Trade executed successfully")
+    def _handle_confluence_signal(self, confluence):
+        """处理聚合信号（买入信号）"""
+        self.logger.warning("\n" + "🔥"*40)
+        self.logger.warning(f"CONFLUENCE SIGNAL DETECTED: {confluence}")
+        self.logger.warning("🔥"*40 + "\n")
 
-                    # 添加到移动止损跟踪
-                    if self.trailing_stop_manager:
-                        self.trailing_stop_manager.add_position(
-                            confluence.symbol,
-                            current_price,
-                            current_price
-                        )
+        # 3. 检查是否启用自动交易
+        if not config.AUTO_TRADING_ENABLED:
+            self.logger.info("⏸️  Auto trading disabled, skipping execution (观察模式)")
+            return
 
-                    # 添加到分批止盈跟踪
-                    if self.pyramiding_manager:
-                        self.pyramiding_manager.add_position(
-                            confluence.symbol,
-                            current_price
-                        )
+        # 4. 获取当前价格
+        binance_symbol = f"{confluence.symbol}{config.SYMBOL_SUFFIX}"
+        current_price = self.trader.get_symbol_price(binance_symbol)
 
-                else:
-                    self.logger.error("❌ Trade execution failed")
+        if not current_price:
+            self.logger.error(f"Failed to get price for {binance_symbol}, skipping trade")
+            return
+
+        # 5. 生成交易建议
+        recommendation = self.risk_manager.generate_trade_recommendation(
+            symbol=confluence.symbol,
+            current_price=current_price,
+            signal_score=confluence.score
+        )
+
+        self.logger.info(f"Trade Recommendation: {recommendation.action} - {recommendation.reason}")
+
+        # 6. 执行交易
+        if recommendation.action == "BUY":
+            success = self.trader.open_long_position(
+                recommendation,
+                symbol_suffix=config.SYMBOL_SUFFIX,
+                leverage=config.LEVERAGE,
+                margin_type=config.MARGIN_TYPE
+            )
+
+            if success:
+                self.logger.info("✅ Trade executed successfully")
+
+                # 添加到移动止损跟踪
+                if self.trailing_stop_manager:
+                    self.trailing_stop_manager.add_position(
+                        confluence.symbol,
+                        current_price,
+                        current_price
+                    )
+
+                # 添加到分批止盈跟踪
+                if self.pyramiding_manager:
+                    self.pyramiding_manager.add_position(
+                        confluence.symbol,
+                        current_price
+                    )
+
+            else:
+                self.logger.error("❌ Trade execution failed")
 
     def monitor_positions(self):
         """定期监控持仓"""

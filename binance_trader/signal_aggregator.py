@@ -57,29 +57,31 @@ class SignalAggregator:
     """
 
     # 消息类型映射
-    FOMO_TYPE = 113  # FOMO 信号
-    FOMO_INTENSIFY_TYPE = 112  # FOMO 加剧
+    FOMO_TYPE = 113  # FOMO 信号（买入信号）
+    FOMO_INTENSIFY_TYPE = 112  # FOMO 加剧（风险信号，应止盈）
     ALPHA_TYPE = 110  # Alpha 机会
 
     def __init__(self,
                  time_window: int = 300,  # 时间窗口（秒），默认5分钟
-                 min_score: float = 0.6,  # 最低信号评分
-                 enable_fomo_intensify: bool = True):  # 是否启用 FOMO 加剧信号
+                 min_score: float = 0.6):  # 最低信号评分
         """
         初始化信号聚合器
 
         Args:
             time_window: 信号匹配时间窗口（秒）
             min_score: 最低信号评分阈值（0-1）
-            enable_fomo_intensify: 是否将 Type 112 FOMO加剧也视为 FOMO 信号
+
+        注意：
+            - Type 113 (FOMO) 视为买入信号
+            - Type 112 (FOMO加剧) 视为风险信号，用于触发止盈
         """
         self.time_window = time_window
         self.min_score = min_score
-        self.enable_fomo_intensify = enable_fomo_intensify
 
         # 活跃信号缓存 - 按标的分组
-        self.fomo_signals: Dict[str, List[Signal]] = defaultdict(list)
-        self.alpha_signals: Dict[str, List[Signal]] = defaultdict(list)
+        self.fomo_signals: Dict[str, List[Signal]] = defaultdict(list)  # Type 113
+        self.alpha_signals: Dict[str, List[Signal]] = defaultdict(list)  # Type 110
+        self.risk_signals: Dict[str, List[Signal]] = defaultdict(list)  # Type 112 风险信号
 
         # 已匹配的聚合信号
         self.confluence_signals: List[ConfluenceSignal] = []
@@ -91,9 +93,11 @@ class SignalAggregator:
 
         self.logger.info(
             f"SignalAggregator initialized: "
-            f"time_window={time_window}s, min_score={min_score}, "
-            f"fomo_intensify={'enabled' if enable_fomo_intensify else 'disabled'}"
+            f"time_window={time_window}s, min_score={min_score}"
         )
+        self.logger.info("📊 Signal Types: Type 113 (FOMO) + Type 110 (Alpha) = BUY")
+        self.logger.info("⚠️  Signal Types: Type 112 (FOMO加剧) = RISK (应止盈)")
+
 
     def add_signal(self, message_type: int, message_id: str,
                    symbol: str, data: Dict) -> Optional[ConfluenceSignal]:
@@ -133,10 +137,13 @@ class SignalAggregator:
         # 添加到对应缓存
         if signal_type == "FOMO":
             self.fomo_signals[signal.symbol].append(signal)
-            self.logger.info(f"📢 New FOMO signal: {signal.symbol} (type {message_type})")
+            self.logger.info(f"📢 New FOMO signal: {signal.symbol} (Type 113)")
         elif signal_type == "ALPHA":
             self.alpha_signals[signal.symbol].append(signal)
-            self.logger.info(f"🎯 New ALPHA signal: {signal.symbol}")
+            self.logger.info(f"🎯 New ALPHA signal: {signal.symbol} (Type 110)")
+        elif signal_type == "RISK":
+            self.risk_signals[signal.symbol].append(signal)
+            self.logger.warning(f"⚠️  RISK signal detected: {signal.symbol} (Type 112 - FOMO加剧，建议止盈)")
 
         self.processed_signal_ids.add(message_id)
 
@@ -161,9 +168,18 @@ class SignalAggregator:
             return "ALPHA"
         elif message_type == self.FOMO_TYPE:
             return "FOMO"
-        elif message_type == self.FOMO_INTENSIFY_TYPE and self.enable_fomo_intensify:
-            return "FOMO"
+        elif message_type == self.FOMO_INTENSIFY_TYPE:
+            return "RISK"  # FOMO加剧视为风险信号
         return None
+
+    def check_risk_signal(self, symbol: str) -> bool:
+        """
+        检查指定标的是否有风险信号
+
+        Returns:
+            True if 有风险信号（应止盈）
+        """
+        return len(self.risk_signals.get(symbol, [])) > 0
 
     def _try_match_confluence(self, symbol: str) -> Optional[ConfluenceSignal]:
         """
@@ -282,13 +298,25 @@ class SignalAggregator:
             if not self.alpha_signals[symbol]:
                 del self.alpha_signals[symbol]
 
+        # 清理风险信号（保留更短时间，30分钟）
+        risk_cutoff = datetime.now() - timedelta(seconds=1800)
+        for symbol in list(self.risk_signals.keys()):
+            self.risk_signals[symbol] = [
+                s for s in self.risk_signals[symbol]
+                if s.timestamp > risk_cutoff
+            ]
+            if not self.risk_signals[symbol]:
+                del self.risk_signals[symbol]
+
     def get_pending_signals_count(self) -> Dict[str, int]:
         """获取待匹配信号数量统计"""
         return {
             "fomo": sum(len(signals) for signals in self.fomo_signals.values()),
             "alpha": sum(len(signals) for signals in self.alpha_signals.values()),
+            "risk": sum(len(signals) for signals in self.risk_signals.values()),
             "symbols_with_fomo": len(self.fomo_signals),
-            "symbols_with_alpha": len(self.alpha_signals)
+            "symbols_with_alpha": len(self.alpha_signals),
+            "symbols_with_risk": len(self.risk_signals)
         }
 
     def get_recent_confluences(self, limit: int = 10) -> List[ConfluenceSignal]:
