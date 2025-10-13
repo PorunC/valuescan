@@ -1,4 +1,7 @@
-# ValueScan API 监听工具 - 依赖包
+# ValueScan 完整系统依赖包
+# 包含信号监控模块和 Binance 交易模块的所有依赖
+
+# ============ 信号监控模块依赖 (signal_monitor/) ============
 
 # 浏览器自动化
 DrissionPage>=4.0.0
@@ -8,3 +11,13 @@ requests>=2.31.0
 
 # 进程管理（可选，用于显示进程信息）
 psutil>=5.9.0
+
+# ============ Binance 交易模块依赖 (binance_trader/) ============
+
+# 币安 API 客户端
+python-binance>=1.0.19
+
+# 注意：
+# - 如果只使用信号监控模块，可以只安装上面的依赖
+# - 如果使用完整交易系统，需要安装所有依赖
+# - 建议使用: pip install -r requirements.txt

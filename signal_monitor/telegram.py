@@ -309,6 +309,43 @@ def _format_risk_alert(item, content, msg_type_name):
             f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
     
+    elif predict_type == 3:
+        # 主力增持
+        emoji = "💚"
+        title = f"<b>AI机会监控</b>"
+        tag = "#主力增持"
+
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"<b>{symbol}</b> 疑似主力增持，注意市场变化",
+            f"{symbol} 疑似主力持仓增加，现报<b>${price}</b>，24H涨幅{change_24h:.2f}%，市场情绪乐观，但需注意高抛风险。",
+            f"",
+            f"🪙 <b>{symbol}</b>",
+            f"💼 主力增持",
+        ]
+
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • 📊 市场情绪乐观",
+            f"   • ✅ 可关注入场机会",
+            f"   • ⚠️ 高位注意风险",
+            f"   • 🎯 设置止盈止损",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
+        ])
+
     elif predict_type == 28:
         # 主力增持加速（上涨机会）
         emoji = "🟢"
