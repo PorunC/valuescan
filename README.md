@@ -179,6 +179,7 @@ python start_with_chrome.py
 - `109`: 上下币公告
 - `110`: Alpha
 - `111`: 资金出逃
+- `112`: FOMO加剧 - FOMO情绪加剧，注意止盈防风险
 - `113`: FOMO
 - `114`: 资金异常
 
