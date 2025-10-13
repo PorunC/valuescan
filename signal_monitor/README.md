@@ -1,27 +1,8 @@
-# ValueScan 加密货币交易系统
-
-一个完整的加密货币交易解决方案，包含信号监控和自动化交易两大模块。
-
-## 📦 项目模块
-
-### 1. 信号监控模块 (`signal_monitor/`)
+# ValueScan API 监听工具
 
 监听 valuescan.io API 并将加密货币告警消息自动发送到 Telegram。
 
 支持**有头模式**（显示浏览器）和**无头模式**（后台运行），适用于开发调试和服务器部署。
-
-### 2. Binance 自动化交易模块 (`binance_trader/`)
-
-基于信号聚合策略的智能交易系统，在 **FOMO + Alpha** 信号同时出现时自动执行交易。
-
-- 🎯 多信号聚合策略（Confluence Trading）
-- 🛡️ 完善的风险管理和仓位控制
-- 📊 自动止损止盈
-- ⚙️ 高度可配置
-
-👉 **[查看 Binance 交易模块文档](binance_trader/README.md)**
-
----
 
 ## ✨ 特性
 
@@ -36,75 +17,6 @@
 - ⚡ 自动去重，避免重复通知
 
 ## 🚀 快速开始
-
-### 选择你需要的模块
-
-#### 方案 A: 仅使用信号监控
-如果你只想接收交易信号通知，使用 `signal_monitor/` 模块：
-
-```bash
-cd signal_monitor
-pip install -r requirements.txt
-cp config.example.py config.py
-# 编辑 config.py 填入 Telegram 配置
-python start_with_chrome.py
-```
-
-#### 方案 B: 完整自动化交易系统
-如果你想基于信号自动交易，使用两个模块：
-
-```bash
-# 1. 安装所有依赖
-pip install -r requirements.txt
-cd binance_trader
-pip install -r requirements.txt
-
-# 2. 配置 Binance 交易
-cd binance_trader
-cp config.example.py config.py
-# 编辑 config.py 填入 API Key 等配置
-
-# 3. 运行交易系统
-python main.py
-```
-
-👉 **详细配置请查看 [Binance 交易模块文档](binance_trader/README.md)**
-
----
-
-## 📢 v1.0 重大更新说明
-
-### 项目重构（2025-10-13）
-
-**变化**:
-- ✅ 将信号监控代码移到 `signal_monitor/` 目录
-- ✅ 新增 Binance 自动化交易模块 `binance_trader/`
-- ✅ 清理根目录，保持整洁
-- ✅ 完善文档体系
-
-**老用户迁移**:
-
-如果你之前直接在根目录运行 `start_with_chrome.py`，现在需要：
-
-```bash
-# 旧方式（已废弃）
-python start_with_chrome.py
-
-# 新方式（推荐）
-cd signal_monitor
-python start_with_chrome.py
-```
-
-你的配置文件已保留在根目录，可以：
-```bash
-cp config.py signal_monitor/config.py  # 复制配置到新位置
-```
-
-**功能完全一致，只是目录结构更清晰！**
-
----
-
-## ✨ 信号监控模块快速开始
 
 ### 1. 安装依赖
 
@@ -275,31 +187,20 @@ python start_with_chrome.py
 
 ```
 valuescan/
-├── signal_monitor/           # 信号监控模块
-│   ├── api_monitor.py        # API 监听模块（核心）
-│   ├── message_handler.py    # 消息处理模块
-│   ├── telegram.py           # Telegram 消息发送模块
-│   ├── database.py           # 数据库模块
-│   ├── logger.py             # 日志工具模块
-│   ├── valuescan.py          # 主程序入口
-│   ├── start_with_chrome.py  # 统一启动脚本
-│   ├── kill_chrome.py        # Chrome 进程管理
-│   ├── config.example.py     # 配置文件模板
-│   └── README.md             # 模块文档
-│
-├── binance_trader/           # Binance 自动化交易模块
-│   ├── signal_aggregator.py  # 信号聚合器（核心策略）
-│   ├── trader.py             # 交易执行器
-│   ├── risk_manager.py       # 风险管理器
-│   ├── main.py               # 主程序入口
-│   ├── config.example.py     # 配置文件模板
-│   ├── requirements.txt      # 依赖包列表
-│   └── README.md             # 模块文档（详细）
-│
-├── README.md                 # 项目总文档（本文件）
+├── valuescan.py              # 主程序入口
+├── start_with_chrome.py      # 统一启动脚本（支持两种模式）
+├── 启动.bat                 # Windows 快捷启动脚本
+├── api_monitor.py            # API 监听模块（核心）
+├── message_handler.py        # 消息处理模块
+├── telegram.py               # Telegram 消息发送模块
+├── kill_chrome.py            # Chrome 进程管理模块
+├── logger.py                 # 日志工具模块
+├── database.py               # 数据库模块
+├── db_manager.py             # 数据库管理工具
 ├── config.py                 # 配置文件（需自行创建）
 ├── config.example.py         # 配置文件模板
 ├── requirements.txt          # 依赖包列表
+├── README.md                 # 本文件
 ├── chrome-debug-profile/     # Chrome 用户数据目录
 └── valuescan.db              # 数据库文件
 ```

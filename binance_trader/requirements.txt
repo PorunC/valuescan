@@ -1,0 +1,8 @@
+# Binance 自动化交易系统依赖
+
+# 币安 API 客户端
+python-binance>=1.0.19
+
+# 已有依赖（来自 signal_monitor）
+DrissionPage>=4.0.0
+requests>=2.31.0
