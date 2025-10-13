@@ -96,7 +96,7 @@ class AutoTradingSystem:
         """打印系统状态"""
         status = self.risk_manager.get_status()
 
-        self.logger.info("\n" + "="*80)
+        self.logger.info("="*80)
         self.logger.info("📊 SYSTEM STATUS")
         self.logger.info("="*80)
         self.logger.info(f"Trading Mode: {'TESTNET ⚠️' if config.USE_TESTNET else 'PRODUCTION 🔴'}")
@@ -108,7 +108,7 @@ class AutoTradingSystem:
         self.logger.info(f"Daily Trades: {status['daily_trades']}/{config.MAX_DAILY_TRADES}")
         self.logger.info(f"Daily PnL: {status['daily_pnl']:.2f} USDT")
         self.logger.info(f"Trading Status: {'ACTIVE' if status['trading_enabled'] else 'HALTED: ' + status['halt_reason']}")
-        self.logger.info("="*80 + "\n")
+        self.logger.info("="*80)
 
     def process_signal(self, message_type: int, message_id: str, symbol: str, data: dict):
         """
@@ -215,7 +215,7 @@ class AutoTradingSystem:
                 time.sleep(1)
 
         except KeyboardInterrupt:
-            self.logger.info("\n🛑 Shutting down...")
+            self.logger.info("🛑 Shutting down...")
             self._print_system_status()
 
     def run_standalone(self):
@@ -250,7 +250,7 @@ class AutoTradingSystem:
                 time.sleep(1)
 
         except KeyboardInterrupt:
-            self.logger.info("\n🛑 Shutting down...")
+            self.logger.info("🛑 Shutting down...")
             self._print_system_status()
 
 
