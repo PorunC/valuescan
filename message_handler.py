@@ -6,7 +6,7 @@
 import json
 import time
 from logger import logger
-from config import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
+from message_types import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
 from telegram import send_telegram_message, format_message_for_telegram
 from database import is_message_processed, mark_message_processed
 

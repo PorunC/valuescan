@@ -69,7 +69,7 @@ def format_message_for_telegram(item):
     Returns:
         str: 格式化后的 HTML 消息文本
     """
-    from config import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
+    from message_types import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
     
     msg_type = item.get('type', 'N/A')
     msg_type_name = MESSAGE_TYPE_MAP.get(msg_type, 'N/A') if isinstance(msg_type, int) else 'N/A'
@@ -107,7 +107,7 @@ def _format_risk_alert(item, content, msg_type_name):
     - predictType 30: 追踪后涨幅5-10%（保护本金）
     - predictType 31: 追踪后跌幅5-15%（保护本金）
     """
-    from config import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
+    from message_types import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
     
     symbol = content.get('symbol', 'N/A')
     price = content.get('price', 'N/A')
@@ -654,7 +654,7 @@ def _format_general_message(item, content, msg_type, msg_type_name):
     格式化通用消息（资金异动、Alpha等）
     特别优化 type 111（资金出逃）的提示
     """
-    from config import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
+    from message_types import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
     
     symbol = content.get('symbol', 'N/A')
     price = content.get('price', 'N/A')
