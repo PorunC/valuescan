@@ -9,7 +9,7 @@ import platform
 import os
 from datetime import datetime, timezone, timedelta
 from DrissionPage import ChromiumPage, ChromiumOptions
-from logger import logger
+from .logger import logger
 
 # 北京时区 (UTC+8)
 BEIJING_TZ = timezone(timedelta(hours=8))
@@ -27,8 +27,8 @@ def get_beijing_time_str(format_str='%Y-%m-%d %H:%M:%S'):
     """
     dt = datetime.now(tz=BEIJING_TZ)
     return dt.strftime(format_str) + ' (UTC+8)'
-from config import API_PATH, CHROME_DEBUG_PORT, SEND_TG_IN_MODE_1
-from message_handler import process_response_data
+from .config import API_PATH, CHROME_DEBUG_PORT, SEND_TG_IN_MODE_1
+from .message_handler import process_response_data
 
 
 def _get_chrome_paths():

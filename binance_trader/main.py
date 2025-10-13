@@ -189,33 +189,30 @@ class AutoTradingSystem:
         self.logger.info("🔄 Starting integrated mode with signal monitor...")
 
         # 导入信号监控模块
-        from signal_monitor.message_handler import process_response_data
-        from signal_monitor.api_monitor import ValueScanMonitor
+        try:
+            from signal_monitor.message_handler import process_response_data
+            from signal_monitor.api_monitor import capture_api_request
+        except ImportError as e:
+            self.logger.error(f"❌ Failed to import signal_monitor: {e}")
+            self.logger.error("Please ensure signal_monitor module is available")
+            return
 
-        # 创建监控器
-        monitor = ValueScanMonitor()
-
-        # 定义信号回调函数
-        def on_new_message(message_type: int, message_id: str, symbol: str, data: dict):
-            """当捕获到新信号时的回调"""
-            # 只处理 FOMO 和 Alpha 信号
-            if message_type in [110, 112, 113]:
-                self.process_signal(message_type, message_id, symbol, data)
-
-        self.logger.info("✅ Signal monitor integration ready")
-        self.logger.info("Waiting for signals from ValueScan...")
+        self.logger.info("✅ Signal monitor module loaded")
+        self.logger.info("⚠️  Note: Full integration with signal monitor requires callback mechanism")
+        self.logger.info("Currently running in observation mode with periodic maintenance tasks")
+        self.logger.info("For automated signal processing, use standalone mode (Mode 2) with external integration")
 
         try:
             while True:
-                # 这里需要与 signal_monitor 模块集成
-                # 实际实现时，需要修改 message_handler 以支持回调
-                self.logger.info("⚠️  Note: Full integration requires modifying signal_monitor module")
-                self.logger.info("Please use standalone mode or implement callback mechanism")
-                time.sleep(10)
-
                 # 定期维护任务
                 self.monitor_positions()
                 self.update_balance()
+
+                # 每5分钟打印一次状态
+                if time.time() % 300 < 1:
+                    self._print_system_status()
+
+                time.sleep(1)
 
         except KeyboardInterrupt:
             self.logger.info("\n🛑 Shutting down...")

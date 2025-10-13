@@ -9,8 +9,8 @@ import time
 import sys
 import os
 import platform
-from logger import logger
-from config import CHROME_DEBUG_PORT
+from .logger import logger
+from .config import CHROME_DEBUG_PORT
 
 
 def kill_all_chrome_processes():

@@ -7,8 +7,8 @@ import json
 import time
 from datetime import datetime, timezone, timedelta
 import requests
-from logger import logger
-from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from .logger import logger
+from .config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
 # 北京时区 (UTC+8)
 BEIJING_TZ = timezone(timedelta(hours=8))

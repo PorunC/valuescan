@@ -7,7 +7,7 @@ ValueScan 一键启动脚本
 
 import sys
 import time
-from logger import logger
+from .logger import logger
 from kill_chrome import restart_chrome_in_debug_mode
 from api_monitor import capture_api_request
 

@@ -6,7 +6,7 @@
 import sqlite3
 import os
 import time
-from logger import logger
+from .logger import logger
 
 
 class MessageDatabase:

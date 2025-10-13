@@ -6,12 +6,12 @@ ValueScan Signal Monitor Module
 __version__ = "1.0.0"
 __author__ = "ValueScan Team"
 
-from .api_monitor import ValueScanMonitor
+from .api_monitor import capture_api_request
 from .message_handler import process_response_data
 from .database import get_database
 
 __all__ = [
-    'ValueScanMonitor',
+    'capture_api_request',
     'process_response_data',
     'get_database',
 ]
