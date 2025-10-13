@@ -257,15 +257,15 @@ class AutoTradingSystem:
 def main():
     """主函数"""
     print("\n" + "="*80)
-    print("🚀 Binance Auto Trading System - ValueScan Signal Based")
+    print("🚀 币安自动交易系统 - 基于 ValueScan 信号")
     print("="*80)
-    print("\nSelect running mode:")
-    print("1. Integrated mode (with signal monitor) - Recommended")
-    print("2. Standalone mode (manual signal input)")
-    print("3. Test signal aggregation")
+    print("\n请选择运行模式：")
+    print("1. 集成模式（整合信号监控）- 推荐")
+    print("2. 独立模式（手动输入信号）")
+    print("3. 测试信号聚合功能")
     print()
 
-    choice = input("Enter choice (1/2/3): ").strip()
+    choice = input("请输入选择 (1/2/3): ").strip()
 
     if choice == "3":
         # 测试模式
@@ -280,7 +280,7 @@ def main():
     elif choice == "2":
         system.run_standalone()
     else:
-        print("Invalid choice")
+        print("❌ 无效的选择，请输入 1、2 或 3")
 
 
 def test_signal_aggregation():
