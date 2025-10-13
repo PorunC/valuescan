@@ -30,11 +30,6 @@ HEADLESS_MODE = False
 # 监听的 API 路径（部分匹配）
 API_PATH = "api/account/message/getWarnMessage"
 
-# ==================== 消息类型映射 ====================
-# 注意：消息类型映射已移至 message_types.py 文件
-# 可通过以下方式导入：
-# from message_types import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP, PREDICT_TYPE_MAP
-
 # ==================== 日志配置 ====================
 # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 # DEBUG: 详细的调试信息
