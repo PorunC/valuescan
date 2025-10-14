@@ -6,7 +6,7 @@
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
-from .config import (
+from config import (
     LOG_LEVEL,
     LOG_TO_FILE,
     LOG_FILE,

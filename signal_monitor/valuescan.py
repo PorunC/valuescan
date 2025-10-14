@@ -3,13 +3,13 @@ ValueScan API 监听工具 - 主入口
 监听 valuescan.io API 并将告警消息发送到 Telegram
 """
 
-from .logger import logger
-from .config import (
+from logger import logger
+from config import (
     TELEGRAM_BOT_TOKEN,
     SEND_TG_IN_MODE_1,
     CHROME_DEBUG_PORT
 )
-from .api_monitor import capture_api_request
+from api_monitor import capture_api_request
 
 # 尝试导入无头模式配置
 try:

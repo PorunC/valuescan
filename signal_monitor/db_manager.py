@@ -4,8 +4,8 @@
 """
 
 import sys
-from .database import MessageDatabase
-from .logger import logger
+from database import MessageDatabase
+from logger import logger
 import time
 from datetime import datetime, timezone, timedelta
 
