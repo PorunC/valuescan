@@ -816,27 +816,42 @@ def _format_general_message(item, content, msg_type, msg_type_name):
     # Type 111 资金出逃 - 特殊格式
     elif msg_type == 111:
         emoji = "🚨"
-        title = f"<b>${symbol} 主力资金出逃</b>"
+        title = f"<b>${symbol} 主力资金已出逃</b>"
+        funds_text = FUNDS_MOVEMENT_MAP.get(funds_type, 'N/A')
         tag = "#追踪结束"
-        
+
         message_parts = [
             f"{emoji} {title}",
             f"━━━━━━━━━",
-            f"⚠️ 疑似主力资金已出逃",
-            f"📊 资金异动监控结束",
+            f"⚠️ 资金异动实时追踪结束",
+            f"💼 疑似主力资金已出逃，资金异动监控结束",
             f"💵 现价: <b>${price}</b>",
-            f"📉 24H: <code>{change_24h:+.2f}%</code>",
+        ]
+
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+
+        if 'tradeType' in content:
+            trade_type = content.get('tradeType')
+            trade_text = TRADE_TYPE_MAP.get(trade_type, 'N/A')
+            message_parts.append(f"📊 资金类型: {trade_text}")
+
+        message_parts.extend([
             f"",
-            f"💡 操作建议:",
-            f"   • <b>注意市场风险</b>",
-            f"   • 已持仓建议及时止盈/止损",
-            f"   • 观望为主，等待企稳信号",
+            f"💡 风险提示:",
+            f"   • 🚨 <b>主力资金疑似已撤离</b>",
+            f"   • 📉 <b>注意市场风险</b>",
+            f"   • 💰 已持仓建议及时止盈/止损",
+            f"   • 🛑 观望为主，等待企稳信号",
+            f"   • 👀 资金追踪已停止",
             f"",
             f"{tag}",
             f"━━━━━━━━━",
             f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
-        ]
-        
+        ])
+
         return "\n".join(message_parts)
     
     # Type 110 Alpha - 优化格式
