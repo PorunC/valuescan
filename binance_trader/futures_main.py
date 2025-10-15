@@ -118,7 +118,7 @@ class FuturesAutoTradingSystem:
         """打印系统状态"""
         status = self.risk_manager.get_status()
 
-        self.logger.info("\n" + "="*80)
+        self.logger.info("="*80)
         self.logger.info("📊 SYSTEM STATUS")
         self.logger.info("="*80)
         self.logger.info(f"Trading Mode: FUTURES {'TESTNET ⚠️' if config.USE_TESTNET else 'PRODUCTION 🔴'}")
@@ -133,7 +133,7 @@ class FuturesAutoTradingSystem:
         self.logger.info(f"Daily Trades: {status['daily_trades']}/{config.MAX_DAILY_TRADES}")
         self.logger.info(f"Daily PnL: {status['daily_pnl']:.2f} USDT")
         self.logger.info(f"Trading Status: {'ACTIVE' if status['trading_enabled'] else 'HALTED: ' + status['halt_reason']}")
-        self.logger.info("="*80 + "\n")
+        self.logger.info("="*80)
 
     def _check_emergency_stop(self) -> bool:
         """检查紧急停止开关"""
