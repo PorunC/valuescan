@@ -76,6 +76,9 @@ class BinanceFuturesTrader:
 
         # 初始化 Binance 合约客户端
         self.client = Client(api_key, api_secret, testnet=testnet)
+        if testnet:
+            # python-binance 默认只切换现货测试网，需要手动指定合约测试网入口
+            self.client.FUTURES_URL = 'https://testnet.binancefuture.com/fapi'
         self.logger = logging.getLogger(__name__)
 
         if testnet:
@@ -244,22 +247,6 @@ class BinanceFuturesTrader:
         # 构建完整的交易对符号
         binance_symbol = f"{recommendation.symbol}{symbol_suffix}"
 
-        self.logger.info(
-            f"\n{'='*60}\n"
-            f"🚀 OPENING LONG POSITION (FUTURES)\n"
-            f"Symbol: {binance_symbol}\n"
-            f"Leverage: {leverage}x\n"
-            f"Margin Type: {margin_type}\n"
-            f"USDT Amount: {recommendation.quantity:.2f} (本金)\n"
-            f"Position Value: {recommendation.quantity * leverage:.2f} (含杠杆)\n"
-            f"Stop Loss: {recommendation.stop_loss:.2f}\n"
-            f"Take Profit 1: {recommendation.take_profit_1:.2f}\n"
-            f"Take Profit 2: {recommendation.take_profit_2:.2f}\n"
-            f"Risk Level: {recommendation.risk_level}\n"
-            f"Reason: {recommendation.reason}\n"
-            f"{'='*60}"
-        )
-
         try:
             # 1. 设置杠杆
             if not self.set_leverage(binance_symbol, leverage):
@@ -275,10 +262,29 @@ class BinanceFuturesTrader:
                 self.logger.error(f"Failed to get price for {binance_symbol}")
                 return False
 
+            # 使用风控建议的币数量计算等值本金
+            notional_usdt = recommendation.quantity * current_price
+
+            self.logger.info(
+                f"\n{'='*60}\n"
+                f"🚀 OPENING LONG POSITION (FUTURES)\n"
+                f"Symbol: {binance_symbol}\n"
+                f"Leverage: {leverage}x\n"
+                f"Margin Type: {margin_type}\n"
+                f"Size: {recommendation.quantity:.6f} {recommendation.symbol}\n"
+                f"Notional: {notional_usdt:.2f} USDT (x{leverage} => {notional_usdt * leverage:.2f})\n"
+                f"Stop Loss: {recommendation.stop_loss:.2f}\n"
+                f"Take Profit 1: {recommendation.take_profit_1:.2f}\n"
+                f"Take Profit 2: {recommendation.take_profit_2:.2f}\n"
+                f"Risk Level: {recommendation.risk_level}\n"
+                f"Reason: {recommendation.reason}\n"
+                f"{'='*60}"
+            )
+
             # 4. 计算合约数量
             quantity = self.calculate_quantity(
                 binance_symbol,
-                recommendation.quantity,  # 这是USDT本金金额
+                notional_usdt,  # 使用等值USDT本金
                 leverage,
                 current_price
             )
@@ -297,13 +303,18 @@ class BinanceFuturesTrader:
                 quantity=quantity
             )
 
-            self.logger.info(f"✅ LONG position opened: {binance_symbol} x{quantity}")
+            executed_quantity = float(order.get('executedQty') or order.get('origQty') or 0)
+
+            self.logger.info(
+                f"✅ LONG position opened: {binance_symbol} "
+                f"x{executed_quantity or quantity} (requested {quantity})"
+            )
             self.logger.info(f"Order ID: {order.get('orderId')}, Status: {order.get('status')}")
 
-            # 6. 更新风险管理器持仓（使用本金金额）
+            # 6. 更新风险管理器持仓（使用实际成交数量）
             self.risk_manager.add_position(
                 symbol=recommendation.symbol,
-                quantity=recommendation.quantity,  # 本金金额
+                quantity=executed_quantity or quantity,
                 entry_price=current_price
             )
 
@@ -456,9 +467,8 @@ class BinanceFuturesTrader:
         """更新所有持仓信息"""
         try:
             positions = self.client.futures_position_information()
-
-            # 清空旧缓存
-            self.positions.clear()
+            previous_positions = self.positions
+            updated_positions: Dict[str, PositionInfo] = {}
 
             for pos_data in positions:
                 qty = float(pos_data.get('positionAmt', 0))
@@ -467,17 +477,20 @@ class BinanceFuturesTrader:
                     position = PositionInfo(pos_data)
 
                     # 如果之前有缓存，继承移动止损数据
-                    if symbol in self.positions:
-                        old_pos = self.positions[symbol]
+                    if symbol in previous_positions:
+                        old_pos = previous_positions[symbol]
                         position.highest_price = max(position.mark_price, old_pos.highest_price)
                         position.trailing_stop_activated = old_pos.trailing_stop_activated
                         position.trailing_stop_price = old_pos.trailing_stop_price
 
-                    self.positions[symbol] = position
+                    updated_positions[symbol] = position
 
                     # 同步更新风险管理器的持仓价格
                     symbol_base = symbol.replace("USDT", "")
                     self.risk_manager.update_position_price(symbol_base, position.mark_price)
+
+            # 用最新数据替换缓存
+            self.positions = updated_positions
 
         except BinanceAPIException as e:
             self.logger.error(f"Failed to update positions: {e}")

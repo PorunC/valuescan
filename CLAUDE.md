@@ -52,12 +52,11 @@ pip install -r requirements.txt
 cp config.example.py config.py
 
 # Run the trading system
-python main.py
+python futures_main.py
 
 # Choose mode:
-# 1 - Integrated with signal monitor (recommended)
-# 2 - Standalone mode (manual signal input)
-# 3 - Test signal aggregation
+# 1 - Standalone mode (manual signal input)
+# 2 - Test signal aggregation
 ```
 
 ### Full System Deployment
@@ -150,16 +149,7 @@ Each type has custom Telegram formatting in [telegram.py](signal_monitor/telegra
    - Calculates stop-loss and take-profit prices
    - Generates trade recommendations (BUY/SKIP) with detailed reasoning
 
-3. **Trader Executor** ([trader.py](binance_trader/trader.py))
-   - Executes trades on Binance (supports both testnet and production)
-   - Implements split take-profit strategy:
-     - Entry → Stop-loss at -3%
-     - Take-profit 1 at +5% (50% position)
-     - Take-profit 2 at +10% (remaining 50%)
-   - Monitors positions for stop-loss/take-profit triggers
-   - Updates risk manager with balances and positions
-
-4. **Futures Trader** ([futures_trader.py](binance_trader/futures_trader.py)) **[New Feature]**
+3. **Futures Trader** ([futures_trader.py](binance_trader/futures_trader.py))
    - Supports contract/futures trading on Binance Futures
    - Configurable leverage (1-125x, recommended ≤20x)
    - Margin mode: ISOLATED (recommended) or CROSSED
@@ -169,11 +159,10 @@ Each type has custom Telegram formatting in [telegram.py](signal_monitor/telegra
    - More conservative defaults for leveraged trading
    - Real-time margin ratio monitoring with liquidation warnings
 
-5. **Main Controller** ([main.py](binance_trader/main.py))
-   - Three running modes:
-     - Mode 1: Integrated with signal monitor (auto-capture signals)
-     - Mode 2: Standalone (manual signal input via API)
-     - Mode 3: Test signal aggregation logic
+4. **Main Controller** ([futures_main.py](binance_trader/futures_main.py))
+   - Two running modes:
+     - Mode 1: Standalone (manual signal input / external integration)
+     - Mode 2: Test signal aggregation logic
    - Periodic tasks: Balance updates, position monitoring
    - Logging and status reporting
 
@@ -237,13 +226,7 @@ if (FOMO signal exists AND Alpha signal exists AND
 - When detected, should trigger profit-taking on existing positions
 - Do NOT use Type 112 as a buy signal (common mistake)
 
-### Trading Modes: Spot vs Futures
-
-**Spot Trading** ([trader.py](binance_trader/trader.py)):
-- Direct asset ownership (no leverage)
-- Lower risk, suitable for beginners
-- Split take-profit: 50% at +5%, 50% at +10%
-- Fixed stop-loss at -3%
+### Trading Mode
 
 **Futures Trading** ([futures_trader.py](binance_trader/futures_trader.py)):
 - Contract trading with leverage (1-125x)
@@ -264,7 +247,7 @@ if (FOMO signal exists AND Alpha signal exists AND
 
 2. **Binance API security**:
    - Use testnet first (USE_TESTNET = True)
-   - Enable only required permissions (Spot Trading or Futures, NOT Withdrawal)
+   - Enable only required permissions (Futures trading, NOT Withdrawal)
    - Set IP whitelist if possible
    - Rotate API keys periodically
    - Use separate keys for testnet and production
@@ -281,23 +264,16 @@ The `chrome-debug-profile` directory is critical for signal monitor:
 
 ### Module Integration
 
-**Integrated Mode** (binance_trader Mode 1):
-- Signal monitor runs within trader process
-- Signals automatically feed into aggregator
-- Single process, unified logging
-- **Note**: Currently requires callback mechanism implementation in signal_monitor
-
-**Separate Processes** (Manual integration):
-- Run signal monitor independently: `cd signal_monitor && python start_with_chrome.py`
-- Run trader in standalone mode: `cd binance_trader && python main.py` (choose Mode 2)
-- Manually bridge signals via custom integration code
-- Better isolation, independent restarts
+`futures_main.py` runs as a standalone process. To integrate with the signal monitor:
+- Run the monitor independently: `cd signal_monitor && python start_with_chrome.py`
+- Run the futures trader: `cd binance_trader && python futures_main.py` (choose Mode 1)
+- Forward matched signals to `FuturesAutoTradingSystem.process_signal(...)` via your preferred IPC/queue/HTTP bridge
 
 ### Deployment Best Practices
 
 **Development Workflow**:
 1. Windows/macOS with headed mode for signal monitor (first login)
-2. Test signal aggregation: `python main.py` → Mode 3
+2. Test signal aggregation: `python futures_main.py` → Mode 2
 3. Run with AUTO_TRADING_ENABLED = False (observation mode)
 4. Validate on testnet with small trades
 5. Transfer `chrome-debug-profile` to Linux if deploying there
@@ -316,7 +292,7 @@ Messages are reversed before sending to Telegram (`reversed(new_messages)`) so n
 ### Logging
 
 - Signal monitor: Comprehensive logging via [logger.py](signal_monitor/logger.py) with file rotation (10MB max, 5 backups)
-- Binance trader: Logging configured in [main.py](binance_trader/main.py), outputs to `logs/binance_futures_trader.log`
+- Binance trader: Logging configured in [futures_main.py](binance_trader/futures_main.py), outputs to `logs/binance_futures_trader.log`
 - Both modules support configurable log levels (DEBUG, INFO, WARNING, ERROR)
 
 ### API Monitoring Mechanics

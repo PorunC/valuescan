@@ -7,11 +7,11 @@ __version__ = "1.0.0"
 __author__ = "ValueScan Team"
 
 from .signal_aggregator import SignalAggregator
-from .trader import BinanceTrader
 from .risk_manager import RiskManager
+from .futures_trader import BinanceFuturesTrader
 
 __all__ = [
     'SignalAggregator',
-    'BinanceTrader',
     'RiskManager',
+    'BinanceFuturesTrader',
 ]

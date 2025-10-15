@@ -187,7 +187,11 @@ class RiskManager:
             self.halt_trading(f"Daily loss limit reached ({self.max_daily_loss_percent}%)")
             return False, self.halt_reason
 
-        # 5. 检查总仓位限制
+        # 5. 账户余额校验
+        if self.total_balance <= 0:
+            return False, "Account balance unavailable"
+
+        # 6. 检查总仓位限制
         total_position_value = sum(
             pos.quantity * pos.current_price
             for pos in self.positions.values()
@@ -198,7 +202,7 @@ class RiskManager:
             return False, (f"Total position limit reached "
                           f"({total_position_percent:.1f}% >= {self.max_total_position_percent}%)")
 
-        # 6. 检查可用余额
+        # 7. 检查可用余额
         if self.available_balance < (self.total_balance * 0.05):  # 至少保留5%
             return False, "Insufficient available balance"
 

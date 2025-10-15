@@ -65,7 +65,7 @@ cp config.example.py config.py
 # 编辑 config.py 填入 API Key 等配置
 
 # 3. 运行交易系统
-python main.py
+python futures_main.py
 ```
 
 👉 **详细配置请查看 [Binance 交易模块文档](binance_trader/README.md)**
@@ -289,9 +289,10 @@ valuescan/
 │
 ├── binance_trader/           # Binance 自动化交易模块
 │   ├── signal_aggregator.py  # 信号聚合器（核心策略）
-│   ├── trader.py             # 交易执行器
+│   ├── futures_trader.py     # 合约交易执行器
+│   ├── futures_main.py       # 合约主程序入口
+│   ├── trailing_stop.py      # 移动止损 / 分批止盈
 │   ├── risk_manager.py       # 风险管理器
-│   ├── main.py               # 主程序入口
 │   ├── config.example.py     # 配置文件模板
 │   ├── requirements.txt      # 依赖包列表
 │   └── README.md             # 模块文档（详细）

@@ -60,17 +60,18 @@ cp config.example.py config.py
 # - 设置 AUTO_TRADING_ENABLED = False（先观察）
 
 # 5. 测试信号聚合
-python main.py
-# 选择 3 - Test signal aggregation
+python futures_main.py
+# 选择 2 - Test signal aggregation
 
 # 6. 运行系统（观察模式）
-python main.py
-# 选择 2 - Standalone mode
-# 此时只会记录信号，不会实际交易
+python futures_main.py
+# 选择 1 - Standalone mode
+# 此时只会记录信号，不会实际下单
 
 # 7. 启用自动交易（确认策略后）
 # 编辑 config.py: AUTO_TRADING_ENABLED = True
-python main.py
+python futures_main.py
+# 选择 1 - Standalone mode
 ```
 
 **完成！** 系统现在会在检测到高质量信号时自动交易。
@@ -101,14 +102,14 @@ python main.py
 **生产环境**:
 1. 登录 Binance → 个人中心 → API 管理
 2. 创建 API Key
-3. 启用"现货交易"权限
+3. 启用"合约交易 (Futures)"权限
 4. **重要**: 设置 IP 白名单
 
 **测试网（推荐）**:
-1. 访问 https://testnet.binance.vision/
-2. 注册账号
-3. 获取测试 API Key
-4. 使用测试网 USDT（免费）
+1. 访问 https://testnet.binancefuture.com/
+2. 注册或登录测试网账户
+3. 创建 Futures API Key 与 Secret
+4. 在测试网页面领取 USDT（Futures Testnet Faucet），并记下 REST 入口 `https://testnet.binancefuture.com/fapi`
 
 ### Q4: 第一次运行遇到 "未登录" 错误？
 
@@ -126,9 +127,9 @@ python start_with_chrome.py
 
 ```python
 # 查看风险管理器状态
-from binance_trader.main import AutoTradingSystem
+from binance_trader.futures_main import FuturesAutoTradingSystem
 
-system = AutoTradingSystem()
+system = FuturesAutoTradingSystem()
 status = system.risk_manager.get_status()
 
 print(f"今日盈亏: {status['daily_pnl']:.2f} USDT")
@@ -189,7 +190,7 @@ python start_with_chrome.py
 | 特性 | 测试网 | 生产环境 |
 |------|--------|---------|
 | 资金 | 免费测试币 | 真实资金 |
-| API | testnet.binance.vision | api.binance.com |
+| API | testnet.binancefuture.com/fapi | fapi.binance.com |
 | 风险 | ✅ 零风险 | ⚠️ 真实风险 |
 | 数据 | 模拟行情 | 真实行情 |
 | 建议 | 先在这里测试 | 验证后再用 |
@@ -198,7 +199,7 @@ python start_with_chrome.py
 
 ```python
 # 1. 查看日志
-tail -f logs/binance_trader.log
+tail -f logs/binance_futures_trader.log
 
 # 2. 启用详细日志
 # config.py
@@ -206,13 +207,13 @@ LOG_LEVEL = "DEBUG"
 
 # 3. 测试各个组件
 # 测试信号聚合
-python main.py → 选择 3
+python futures_main.py → 选择 2
 
-# 测试 API 连接
-python -c "from binance.client import Client; c = Client('key', 'secret', testnet=True); print(c.ping())"
+# 测试 Futures API 连接
+python -c "from binance.client import Client; c = Client('key', 'secret', testnet=True); c.FUTURES_URL = 'https://testnet.binancefuture.com/fapi'; print(c.futures_ping())"
 
 # 4. 查看系统状态
-# 在 main.py 运行时会定期打印状态
+# 在 futures_main.py 运行时会定期打印状态
 ```
 
 ---

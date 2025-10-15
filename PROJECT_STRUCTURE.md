@@ -37,7 +37,7 @@ cd binance_trader
 pip install -r requirements.txt
 cp config.example.py config.py
 # 编辑 config.py 填入 Binance API 配置
-python main.py
+python futures_main.py
 ```
 
 **查看详细文档**: [binance_trader/README.md](binance_trader/README.md)
