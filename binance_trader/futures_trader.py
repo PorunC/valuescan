@@ -82,9 +82,9 @@ class BinanceFuturesTrader:
         self.logger = logging.getLogger(__name__)
 
         if testnet:
-            self.logger.warning("⚠️  Running in FUTURES TESTNET mode")
+            self.logger.warning("⚠️  运行于合约测试网模式")
         else:
-            self.logger.info("Running in FUTURES PRODUCTION mode")
+            self.logger.info("运行于合约生产环境模式")
 
         # 持仓信息缓存
         self.positions: Dict[str, PositionInfo] = {}
@@ -95,9 +95,9 @@ class BinanceFuturesTrader:
         # 测试连接
         try:
             self.client.ping()
-            self.logger.info("✅ Binance Futures API connection successful")
+            self.logger.info("✅ 币安合约 API 连接成功")
         except Exception as e:
-            self.logger.error(f"❌ Failed to connect to Binance Futures API: {e}")
+            self.logger.error(f"❌ 币安合约 API 连接失败: {e}")
             raise
 
     def get_account_balance(self) -> Tuple[float, float]:
@@ -112,10 +112,10 @@ class BinanceFuturesTrader:
             total_wallet_balance = float(account.get('totalWalletBalance', 0))
             available_balance = float(account.get('availableBalance', 0))
 
-            self.logger.debug(f"Account balance: total={total_wallet_balance}, available={available_balance}")
+            self.logger.debug(f"账户余额: 总额={total_wallet_balance}, 可用={available_balance}")
             return total_wallet_balance, available_balance
         except BinanceAPIException as e:
-            self.logger.error(f"Failed to get account balance: {e}")
+            self.logger.error(f"获取账户余额失败: {e}")
             return 0.0, 0.0
 
     def update_risk_manager_balance(self):
@@ -129,7 +129,7 @@ class BinanceFuturesTrader:
             ticker = self.client.futures_mark_price(symbol=symbol)
             return float(ticker['markPrice'])
         except BinanceAPIException as e:
-            self.logger.error(f"Failed to get price for {symbol}: {e}")
+            self.logger.error(f"获取 {symbol} 价格失败: {e}")
             return None
 
     def set_leverage(self, symbol: str, leverage: int) -> bool:
@@ -139,13 +139,13 @@ class BinanceFuturesTrader:
                 symbol=symbol,
                 leverage=leverage
             )
-            self.logger.info(f"✅ Set leverage for {symbol}: {leverage}x")
+            self.logger.info(f"✅ 设置 {symbol} 杠杆: {leverage}x")
             return True
         except BinanceAPIException as e:
             if "No need to change leverage" in str(e):
-                self.logger.debug(f"Leverage for {symbol} already set to {leverage}x")
+                self.logger.debug(f"{symbol} 杠杆已设为 {leverage}x")
                 return True
-            self.logger.error(f"Failed to set leverage for {symbol}: {e}")
+            self.logger.error(f"设置 {symbol} 杠杆失败: {e}")
             return False
 
     def set_margin_type(self, symbol: str, margin_type: str) -> bool:
@@ -155,13 +155,13 @@ class BinanceFuturesTrader:
                 symbol=symbol,
                 marginType=margin_type
             )
-            self.logger.info(f"✅ Set margin type for {symbol}: {margin_type}")
+            self.logger.info(f"✅ 设置 {symbol} 保证金类型: {margin_type}")
             return True
         except BinanceAPIException as e:
             if "No need to change margin type" in str(e):
-                self.logger.debug(f"Margin type for {symbol} already set to {margin_type}")
+                self.logger.debug(f"{symbol} 保证金类型已设为 {margin_type}")
                 return True
-            self.logger.error(f"Failed to set margin type for {symbol}: {e}")
+            self.logger.error(f"设置 {symbol} 保证金类型失败: {e}")
             return False
 
     def get_position_info(self, symbol: str) -> Optional[PositionInfo]:
@@ -174,7 +174,7 @@ class BinanceFuturesTrader:
                     return PositionInfo(pos)
             return None
         except BinanceAPIException as e:
-            self.logger.error(f"Failed to get position info for {symbol}: {e}")
+            self.logger.error(f"获取 {symbol} 持仓信息失败: {e}")
             return None
 
     def calculate_quantity(self, symbol: str, usdt_amount: float,
@@ -217,7 +217,7 @@ class BinanceFuturesTrader:
 
             return round(quantity, 3)  # 默认3位小数
         except Exception as e:
-            self.logger.error(f"Failed to format quantity: {e}")
+            self.logger.error(f"格式化数量失败: {e}")
             return round(quantity, 3)
 
     def open_long_position(self, recommendation: TradeRecommendation,
@@ -237,7 +237,7 @@ class BinanceFuturesTrader:
             是否成功
         """
         if recommendation.action != "BUY":
-            self.logger.info(f"Skipping trade for {recommendation.symbol}: {recommendation.reason}")
+            self.logger.info(f"跳过 {recommendation.symbol} 交易: {recommendation.reason}")
             return False
 
         # 使用指定杠杆或默认杠杆
@@ -259,7 +259,7 @@ class BinanceFuturesTrader:
             # 3. 获取当前价格
             current_price = self.get_symbol_price(binance_symbol)
             if not current_price:
-                self.logger.error(f"Failed to get price for {binance_symbol}")
+                self.logger.error(f"获取 {binance_symbol} 价格失败")
                 return False
 
             # 使用风控建议的币数量计算等值本金
@@ -267,17 +267,17 @@ class BinanceFuturesTrader:
 
             self.logger.info(
                 f"\n{'='*60}\n"
-                f"🚀 OPENING LONG POSITION (FUTURES)\n"
-                f"Symbol: {binance_symbol}\n"
-                f"Leverage: {leverage}x\n"
-                f"Margin Type: {margin_type}\n"
-                f"Size: {recommendation.quantity:.6f} {recommendation.symbol}\n"
-                f"Notional: {notional_usdt:.2f} USDT (x{leverage} => {notional_usdt * leverage:.2f})\n"
-                f"Stop Loss: {recommendation.stop_loss:.2f}\n"
-                f"Take Profit 1: {recommendation.take_profit_1:.2f}\n"
-                f"Take Profit 2: {recommendation.take_profit_2:.2f}\n"
-                f"Risk Level: {recommendation.risk_level}\n"
-                f"Reason: {recommendation.reason}\n"
+                f"🚀 开多仓 (合约)\n"
+                f"交易对: {binance_symbol}\n"
+                f"杠杆: {leverage}x\n"
+                f"保证金类型: {margin_type}\n"
+                f"数量: {recommendation.quantity:.6f} {recommendation.symbol}\n"
+                f"名义价值: {notional_usdt:.2f} USDT (x{leverage} => {notional_usdt * leverage:.2f})\n"
+                f"止损: {recommendation.stop_loss:.2f}\n"
+                f"止盈 1: {recommendation.take_profit_1:.2f}\n"
+                f"止盈 2: {recommendation.take_profit_2:.2f}\n"
+                f"风险等级: {recommendation.risk_level}\n"
+                f"原因: {recommendation.reason}\n"
                 f"{'='*60}"
             )
 
@@ -292,7 +292,7 @@ class BinanceFuturesTrader:
             # 格式化数量
             quantity = self.format_quantity(binance_symbol, quantity)
 
-            self.logger.info(f"📊 Calculated quantity: {quantity} contracts @ {current_price}")
+            self.logger.info(f"📊 计算数量: {quantity} 张合约 @ {current_price}")
 
             # 5. 开仓（市价做多）
             order = self.client.futures_create_order(
@@ -306,10 +306,10 @@ class BinanceFuturesTrader:
             executed_quantity = float(order.get('executedQty') or order.get('origQty') or 0)
 
             self.logger.info(
-                f"✅ LONG position opened: {binance_symbol} "
-                f"x{executed_quantity or quantity} (requested {quantity})"
+                f"✅ 多仓已开: {binance_symbol} "
+                f"x{executed_quantity or quantity} (请求 {quantity})"
             )
-            self.logger.info(f"Order ID: {order.get('orderId')}, Status: {order.get('status')}")
+            self.logger.info(f"订单 ID: {order.get('orderId')}, 状态: {order.get('status')}")
 
             # 6. 更新风险管理器持仓（使用实际成交数量）
             self.risk_manager.add_position(
@@ -320,7 +320,7 @@ class BinanceFuturesTrader:
 
             # 7. 设置止损单
             stop_loss_price = recommendation.stop_loss
-            self.logger.info(f"🛡️  Setting Stop Loss at {stop_loss_price}")
+            self.logger.info(f"🛡️  设置止损于 {stop_loss_price}")
 
             try:
                 stop_order = self.client.futures_create_order(
@@ -331,9 +331,9 @@ class BinanceFuturesTrader:
                     stopPrice=stop_loss_price,
                     closePosition=True  # 止损时平掉整个仓位
                 )
-                self.logger.info(f"✅ Stop Loss set at {stop_loss_price}")
+                self.logger.info(f"✅ 止损已设于 {stop_loss_price}")
             except BinanceAPIException as e:
-                self.logger.error(f"Failed to set stop loss: {e}")
+                self.logger.error(f"设置止损失败: {e}")
 
             # 8. 记录交易
             self.risk_manager.record_trade(recommendation.symbol)
@@ -347,16 +347,16 @@ class BinanceFuturesTrader:
             return True
 
         except BinanceOrderException as e:
-            self.logger.error(f"❌ Order failed: {e}")
+            self.logger.error(f"❌ 订单失败: {e}")
             return False
         except BinanceAPIException as e:
-            self.logger.error(f"❌ API error: {e}")
+            self.logger.error(f"❌ API 错误: {e}")
             return False
         except Exception as e:
-            self.logger.error(f"❌ Unexpected error: {e}")
+            self.logger.error(f"❌ 未预期的错误: {e}")
             return False
 
-    def close_position(self, symbol: str, reason: str = "Manual close") -> bool:
+    def close_position(self, symbol: str, reason: str = "手动平仓") -> bool:
         """
         平仓
 
@@ -368,7 +368,7 @@ class BinanceFuturesTrader:
             是否成功
         """
         try:
-            self.logger.info(f"🔻 Closing position: {symbol} - Reason: {reason}")
+            self.logger.info(f"🔻 平仓: {symbol} - 原因: {reason}")
 
             # 市价平仓
             order = self.client.futures_create_order(
@@ -379,8 +379,8 @@ class BinanceFuturesTrader:
                 closePosition=True  # 平掉整个仓位
             )
 
-            self.logger.info(f"✅ Position closed: {symbol}")
-            self.logger.info(f"Order ID: {order.get('orderId')}")
+            self.logger.info(f"✅ 仓位已平: {symbol}")
+            self.logger.info(f"订单 ID: {order.get('orderId')}")
 
             # 取消该标的的所有未成交订单
             self.cancel_all_orders(symbol)
@@ -396,11 +396,11 @@ class BinanceFuturesTrader:
             return True
 
         except BinanceAPIException as e:
-            self.logger.error(f"Failed to close position {symbol}: {e}")
+            self.logger.error(f"平仓 {symbol} 失败: {e}")
             return False
 
     def partial_close_position(self, symbol: str, close_percent: float,
-                               reason: str = "Take profit") -> bool:
+                               reason: str = "止盈") -> bool:
         """
         部分平仓
 
@@ -416,7 +416,7 @@ class BinanceFuturesTrader:
             # 获取当前持仓
             position = self.get_position_info(symbol)
             if not position or position.quantity == 0:
-                self.logger.warning(f"No position found for {symbol}")
+                self.logger.warning(f"未找到 {symbol} 的持仓")
                 return False
 
             # 计算平仓数量
@@ -424,8 +424,8 @@ class BinanceFuturesTrader:
             close_quantity = self.format_quantity(symbol, close_quantity)
 
             self.logger.info(
-                f"📉 Partial closing {close_percent*100:.0f}% of {symbol}: "
-                f"{close_quantity} contracts - Reason: {reason}"
+                f"📉 部分平仓 {close_percent*100:.0f}% {symbol}: "
+                f"{close_quantity} 张合约 - 原因: {reason}"
             )
 
             # 市价平仓
@@ -437,20 +437,20 @@ class BinanceFuturesTrader:
                 quantity=close_quantity
             )
 
-            self.logger.info(f"✅ Partial close successful: {close_quantity} contracts")
+            self.logger.info(f"✅ 部分平仓成功: {close_quantity} 张合约")
             return True
 
         except BinanceAPIException as e:
-            self.logger.error(f"Failed to partial close {symbol}: {e}")
+            self.logger.error(f"部分平仓 {symbol} 失败: {e}")
             return False
 
     def cancel_all_orders(self, symbol: str):
         """取消指定交易对的所有未成交订单"""
         try:
             result = self.client.futures_cancel_all_open_orders(symbol=symbol)
-            self.logger.info(f"Cancelled all orders for {symbol}")
+            self.logger.info(f"已取消 {symbol} 的所有订单")
         except BinanceAPIException as e:
-            self.logger.error(f"Failed to cancel orders for {symbol}: {e}")
+            self.logger.error(f"取消 {symbol} 订单失败: {e}")
 
     def get_open_orders(self, symbol: Optional[str] = None) -> List[Dict]:
         """获取未成交订单"""
@@ -460,7 +460,7 @@ class BinanceFuturesTrader:
             else:
                 return self.client.futures_get_open_orders()
         except BinanceAPIException as e:
-            self.logger.error(f"Failed to get open orders: {e}")
+            self.logger.error(f"获取未成交订单失败: {e}")
             return []
 
     def update_positions(self):
@@ -493,7 +493,7 @@ class BinanceFuturesTrader:
             self.positions = updated_positions
 
         except BinanceAPIException as e:
-            self.logger.error(f"Failed to update positions: {e}")
+            self.logger.error(f"更新持仓失败: {e}")
 
     def monitor_positions(self):
         """监控持仓状态并更新价格"""
@@ -526,10 +526,10 @@ class BinanceFuturesTrader:
                 if distance < 30:  # 距离强平价格小于30%
                     risky_positions.append((symbol, distance))
                     self.logger.warning(
-                        f"⚠️  LIQUIDATION RISK: {symbol} "
-                        f"Mark={position.mark_price:.2f}, "
-                        f"Liq={position.liquidation_price:.2f}, "
-                        f"Distance={distance:.1f}%"
+                        f"⚠️  强平风险: {symbol} "
+                        f"标记={position.mark_price:.2f}, "
+                        f"强平={position.liquidation_price:.2f}, "
+                        f"距离={distance:.1f}%"
                     )
 
         return risky_positions

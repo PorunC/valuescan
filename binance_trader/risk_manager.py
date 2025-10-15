@@ -97,11 +97,11 @@ class RiskManager:
 
         self.logger = logging.getLogger(__name__)
         self.logger.info(
-            f"RiskManager initialized: "
-            f"max_position={max_position_percent}%, "
-            f"max_total={max_total_position_percent}%, "
-            f"stop_loss={stop_loss_percent}%, "
-            f"tp1={take_profit_1_percent}%, tp2={take_profit_2_percent}%"
+            f"风险管理器已初始化: "
+            f"单标的最大仓位={max_position_percent}%, "
+            f"总仓位最大={max_total_position_percent}%, "
+            f"止损={stop_loss_percent}%, "
+            f"止盈1={take_profit_1_percent}%, 止盈2={take_profit_2_percent}%"
         )
 
     def update_balance(self, total_balance: float, available_balance: float):
@@ -109,8 +109,8 @@ class RiskManager:
         self.total_balance = total_balance
         self.available_balance = available_balance
         self.logger.info(
-            f"Balance updated: total={total_balance:.2f} USDT, "
-            f"available={available_balance:.2f} USDT"
+            f"余额已更新: 总额={total_balance:.2f} USDT, "
+            f"可用={available_balance:.2f} USDT"
         )
 
     def add_position(self, symbol: str, quantity: float,
@@ -127,13 +127,13 @@ class RiskManager:
             entry_time=entry_time
         )
         self.positions[symbol] = position
-        self.logger.info(f"Position added: {symbol} x{quantity} @ {entry_price}")
+        self.logger.info(f"持仓已添加: {symbol} x{quantity} @ {entry_price}")
 
     def remove_position(self, symbol: str) -> Optional[PositionInfo]:
         """移除持仓"""
         position = self.positions.pop(symbol, None)
         if position:
-            self.logger.info(f"Position removed: {symbol}")
+            self.logger.info(f"持仓已移除: {symbol}")
         return position
 
     def update_position_price(self, symbol: str, current_price: float):
@@ -171,25 +171,25 @@ class RiskManager:
         """
         # 1. 检查交易是否被暂停
         if not self.trading_enabled:
-            return False, f"Trading halted: {self.halt_reason}"
+            return False, f"交易已暂停: {self.halt_reason}"
 
         # 2. 检查是否已持仓该标的
         if symbol in self.positions:
-            return False, f"Already have position in {symbol}"
+            return False, f"已持有 {symbol} 仓位"
 
         # 3. 检查每日交易次数限制
         today = datetime.now().strftime("%Y-%m-%d")
         if self.daily_trades[today] >= self.max_daily_trades:
-            return False, f"Daily trade limit reached ({self.max_daily_trades})"
+            return False, f"达到每日交易次数限制 ({self.max_daily_trades})"
 
         # 4. 检查每日亏损限制
         if self.daily_pnl[today] < -(self.total_balance * self.max_daily_loss_percent / 100):
-            self.halt_trading(f"Daily loss limit reached ({self.max_daily_loss_percent}%)")
+            self.halt_trading(f"达到每日亏损限制 ({self.max_daily_loss_percent}%)")
             return False, self.halt_reason
 
         # 5. 账户余额校验
         if self.total_balance <= 0:
-            return False, "Account balance unavailable"
+            return False, "账户余额不可用"
 
         # 6. 检查总仓位限制
         total_position_value = sum(
@@ -199,12 +199,12 @@ class RiskManager:
         total_position_percent = (total_position_value / self.total_balance) * 100
 
         if total_position_percent >= self.max_total_position_percent:
-            return False, (f"Total position limit reached "
+            return False, (f"达到总仓位限制 "
                           f"({total_position_percent:.1f}% >= {self.max_total_position_percent}%)")
 
         # 7. 检查可用余额
         if self.available_balance < (self.total_balance * 0.05):  # 至少保留5%
-            return False, "Insufficient available balance"
+            return False, "可用余额不足"
 
         return True, "OK"
 
@@ -259,7 +259,7 @@ class RiskManager:
             stop_loss=stop_loss,
             take_profit_1=take_profit_1,
             take_profit_2=take_profit_2,
-            reason=f"Signal score: {signal_score:.2f}",
+            reason=f"信号评分: {signal_score:.2f}",
             risk_level=risk_level
         )
 
@@ -269,19 +269,19 @@ class RiskManager:
         self.daily_trades[today] += 1
         if pnl != 0:
             self.daily_pnl[today] += pnl
-            self.logger.info(f"Trade recorded: {symbol}, PnL={pnl:.2f}, Daily PnL={self.daily_pnl[today]:.2f}")
+            self.logger.info(f"交易已记录: {symbol}, 盈亏={pnl:.2f}, 今日盈亏={self.daily_pnl[today]:.2f}")
 
     def halt_trading(self, reason: str):
         """暂停交易"""
         self.trading_enabled = False
         self.halt_reason = reason
-        self.logger.error(f"⛔ TRADING HALTED: {reason}")
+        self.logger.error(f"⛔ 交易已暂停: {reason}")
 
     def resume_trading(self):
         """恢复交易"""
         self.trading_enabled = True
         self.halt_reason = ""
-        self.logger.info("✅ Trading resumed")
+        self.logger.info("✅ 交易已恢复")
 
     def get_status(self) -> Dict:
         """获取风控状态"""

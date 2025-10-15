@@ -41,8 +41,8 @@ class TrailingStopManager:
         self.logger = logging.getLogger(__name__)
 
         self.logger.info(
-            f"TrailingStopManager initialized: "
-            f"activation={activation_percent}%, callback={callback_percent}%"
+            f"移动止损管理器已初始化: "
+            f"激活={activation_percent}%, 回调={callback_percent}%"
         )
 
     def add_position(self, symbol: str, entry_price: float, current_price: float):
@@ -56,7 +56,7 @@ class TrailingStopManager:
             'last_update': datetime.now()
         }
 
-        self.logger.info(f"📊 Tracking started for {symbol} @ {entry_price}")
+        self.logger.info(f"📊 开始追踪 {symbol} @ {entry_price}")
 
     def update_price(self, symbol: str, current_price: float) -> Optional[Dict]:
         """
@@ -90,8 +90,8 @@ class TrailingStopManager:
         if not data['activated'] and profit_percent >= self.activation_percent:
             data['activated'] = True
             self.logger.info(
-                f"🎯 Trailing stop ACTIVATED for {symbol}: "
-                f"profit={profit_percent:.2f}% >= {self.activation_percent}%"
+                f"🎯 {symbol} 移动止损已激活: "
+                f"盈利={profit_percent:.2f}% >= {self.activation_percent}%"
             )
 
         # 如果已激活，更新移动止损价格
@@ -109,16 +109,16 @@ class TrailingStopManager:
                     'current_price': current_price,
                     'trailing_stop_price': trailing_stop_price,
                     'profit_percent': profit_percent,
-                    'reason': 'Trailing stop triggered'
+                    'reason': '移动止损已触发'
                 }
 
                 self.logger.warning(
-                    f"🛑 TRAILING STOP TRIGGERED: {symbol}\n"
-                    f"  Entry: {entry_price:.2f}\n"
-                    f"  Highest: {highest_price:.2f}\n"
-                    f"  Current: {current_price:.2f}\n"
-                    f"  Stop: {trailing_stop_price:.2f}\n"
-                    f"  Profit: {profit_percent:.2f}%"
+                    f"🛑 移动止损已触发: {symbol}\n"
+                    f"  入场: {entry_price:.2f}\n"
+                    f"  最高: {highest_price:.2f}\n"
+                    f"  当前: {current_price:.2f}\n"
+                    f"  止损: {trailing_stop_price:.2f}\n"
+                    f"  盈利: {profit_percent:.2f}%"
                 )
 
                 # 移除跟踪
@@ -128,12 +128,12 @@ class TrailingStopManager:
 
             # 记录调试信息
             self.logger.debug(
-                f"Trailing {symbol}: "
-                f"Entry={entry_price:.2f}, "
-                f"High={highest_price:.2f}, "
-                f"Current={current_price:.2f}, "
-                f"Stop={trailing_stop_price:.2f}, "
-                f"Profit={profit_percent:.2f}%"
+                f"追踪 {symbol}: "
+                f"入场={entry_price:.2f}, "
+                f"最高={highest_price:.2f}, "
+                f"当前={current_price:.2f}, "
+                f"止损={trailing_stop_price:.2f}, "
+                f"盈利={profit_percent:.2f}%"
             )
 
         return None
@@ -142,7 +142,7 @@ class TrailingStopManager:
         """从跟踪列表移除持仓"""
         if symbol in self.tracking_data:
             del self.tracking_data[symbol]
-            self.logger.info(f"Stopped tracking {symbol}")
+            self.logger.info(f"停止追踪 {symbol}")
 
     def get_status(self, symbol: str) -> Optional[Dict]:
         """获取指定标的的跟踪状态"""
@@ -182,15 +182,15 @@ class PyramidingExitManager:
 
         self.logger = logging.getLogger(__name__)
 
-        self.logger.info(f"PyramidingExitManager initialized with {len(exit_levels)} levels")
+        self.logger.info(f"金字塔退出管理器已初始化，共 {len(exit_levels)} 个级别")
         for profit_pct, close_pct in self.exit_levels:
-            self.logger.info(f"  Level: {profit_pct}% profit → close {close_pct*100}%")
+            self.logger.info(f"  级别: {profit_pct}% 盈利 → 平仓 {close_pct*100}%")
 
     def add_position(self, symbol: str, entry_price: float):
         """添加新持仓"""
         self.entry_prices[symbol] = entry_price
         self.executed_levels[symbol] = set()
-        self.logger.info(f"📊 Pyramiding tracking started for {symbol} @ {entry_price}")
+        self.logger.info(f"📊 开始金字塔追踪 {symbol} @ {entry_price}")
 
     def check_exit_trigger(self, symbol: str, current_price: float) -> Optional[Tuple[float, float, int]]:
         """
@@ -220,10 +220,10 @@ class PyramidingExitManager:
                 executed.add(level_idx)
 
                 self.logger.info(
-                    f"🎯 Pyramiding exit triggered for {symbol}: "
-                    f"Level {level_idx+1}, "
-                    f"Profit {profit_percent:.2f}% >= {target_profit}%, "
-                    f"Close {close_ratio*100}%"
+                    f"🎯 {symbol} 触发金字塔退出: "
+                    f"级别 {level_idx+1}, "
+                    f"盈利 {profit_percent:.2f}% >= {target_profit}%, "
+                    f"平仓 {close_ratio*100}%"
                 )
 
                 return (profit_percent, close_ratio, level_idx)
@@ -236,7 +236,7 @@ class PyramidingExitManager:
             del self.entry_prices[symbol]
         if symbol in self.executed_levels:
             del self.executed_levels[symbol]
-        self.logger.info(f"Stopped pyramiding tracking for {symbol}")
+        self.logger.info(f"停止金字塔追踪 {symbol}")
 
     def get_status(self, symbol: str) -> Optional[Dict]:
         """获取分批止盈状态"""
@@ -288,7 +288,7 @@ class StopLossManager:
         self.stop_loss_prices[symbol] = stop_loss_price
 
         self.logger.info(
-            f"🛡️  Stop loss set for {symbol}: "
+            f"🛡️  {symbol} 止损已设: "
             f"{stop_loss_price:.2f} (-{self.stop_loss_percent}%)"
         )
 
@@ -308,10 +308,10 @@ class StopLossManager:
             loss_percent = ((current_price - stop_loss_price) / stop_loss_price) * 100
 
             self.logger.warning(
-                f"🛑 STOP LOSS TRIGGERED: {symbol}\n"
-                f"  Current: {current_price:.2f}\n"
-                f"  Stop Loss: {stop_loss_price:.2f}\n"
-                f"  Loss: {loss_percent:.2f}%"
+                f"🛑 止损已触发: {symbol}\n"
+                f"  当前: {current_price:.2f}\n"
+                f"  止损: {stop_loss_price:.2f}\n"
+                f"  亏损: {loss_percent:.2f}%"
             )
 
             # 移除止损记录
@@ -322,7 +322,7 @@ class StopLossManager:
                 'current_price': current_price,
                 'stop_loss_price': stop_loss_price,
                 'loss_percent': loss_percent,
-                'reason': 'Stop loss triggered'
+                'reason': '止损已触发'
             }
 
         return None
@@ -339,6 +339,6 @@ class StopLossManager:
             self.stop_loss_prices[symbol] = new_stop_loss
 
             self.logger.info(
-                f"📊 Stop loss updated for {symbol}: "
+                f"📊 {symbol} 止损已更新: "
                 f"{old_stop:.2f} → {new_stop_loss:.2f}"
             )

@@ -36,7 +36,7 @@ class FuturesAutoTradingSystem:
         self.logger = logging.getLogger(__name__)
 
         self.logger.info("="*80)
-        self.logger.info("🚀 Initializing Binance FUTURES Auto Trading System")
+        self.logger.info("🚀 初始化币安合约自动交易系统")
         self.logger.info("="*80)
 
         # 1. 初始化信号聚合器
@@ -67,8 +67,8 @@ class FuturesAutoTradingSystem:
                 testnet=config.USE_TESTNET
             )
         except Exception as e:
-            self.logger.error(f"Failed to initialize BinanceFuturesTrader: {e}")
-            self.logger.error("Please check your API credentials in config.py")
+            self.logger.error(f"初始化币安合约交易器失败: {e}")
+            self.logger.error("请检查 config.py 中的 API 凭证")
             sys.exit(1)
 
         # 4. 初始化移动止损管理器（如果启用）
@@ -79,7 +79,7 @@ class FuturesAutoTradingSystem:
                 callback_percent=config.TRAILING_STOP_CALLBACK,
                 update_interval=config.TRAILING_STOP_UPDATE_INTERVAL
             )
-            self.logger.info("✅ Trailing stop enabled")
+            self.logger.info("✅ 追踪止损已启用")
 
         # 5. 初始化分批止盈管理器（如果启用）
         self.pyramiding_manager = None
@@ -87,7 +87,7 @@ class FuturesAutoTradingSystem:
             self.pyramiding_manager = PyramidingExitManager(
                 exit_levels=config.PYRAMIDING_EXIT_LEVELS
             )
-            self.logger.info("✅ Pyramiding exit enabled")
+            self.logger.info("✅ 金字塔退出已启用")
 
         # 6. 更新账户余额
         self.trader.update_risk_manager_balance()
@@ -97,7 +97,7 @@ class FuturesAutoTradingSystem:
         self.last_position_monitor = time.time()
         self.last_trailing_stop_check = time.time()
 
-        self.logger.info("✅ System initialized successfully")
+        self.logger.info("✅ 系统初始化成功")
         self._print_system_status()
 
     def _setup_logging(self):
@@ -119,28 +119,28 @@ class FuturesAutoTradingSystem:
         status = self.risk_manager.get_status()
 
         self.logger.info("="*80)
-        self.logger.info("📊 SYSTEM STATUS")
+        self.logger.info("📊 系统状态")
         self.logger.info("="*80)
-        self.logger.info(f"Trading Mode: FUTURES {'TESTNET ⚠️' if config.USE_TESTNET else 'PRODUCTION 🔴'}")
-        self.logger.info(f"Leverage: {config.LEVERAGE}x")
-        self.logger.info(f"Margin Type: {config.MARGIN_TYPE}")
-        self.logger.info(f"Auto Trading: {'ENABLED ✅' if config.AUTO_TRADING_ENABLED else 'DISABLED (观察模式)'}")
-        self.logger.info(f"Trailing Stop: {'ENABLED ✅' if config.ENABLE_TRAILING_STOP else 'DISABLED'}")
-        self.logger.info(f"Pyramiding Exit: {'ENABLED ✅' if config.ENABLE_PYRAMIDING_EXIT else 'DISABLED'}")
-        self.logger.info(f"Total Balance: {status['total_balance']:.2f} USDT")
-        self.logger.info(f"Available Balance: {status['available_balance']:.2f} USDT")
-        self.logger.info(f"Active Positions: {status['position_count']}")
-        self.logger.info(f"Daily Trades: {status['daily_trades']}/{config.MAX_DAILY_TRADES}")
-        self.logger.info(f"Daily PnL: {status['daily_pnl']:.2f} USDT")
-        self.logger.info(f"Trading Status: {'ACTIVE' if status['trading_enabled'] else 'HALTED: ' + status['halt_reason']}")
+        self.logger.info(f"交易模式: 期货 {'测试网 ⚠️' if config.USE_TESTNET else '生产环境 🔴'}")
+        self.logger.info(f"杠杆倍数: {config.LEVERAGE}x")
+        self.logger.info(f"保证金类型: {config.MARGIN_TYPE}")
+        self.logger.info(f"自动交易: {'已启用 ✅' if config.AUTO_TRADING_ENABLED else '已禁用 (观察模式)'}")
+        self.logger.info(f"追踪止损: {'已启用 ✅' if config.ENABLE_TRAILING_STOP else '已禁用'}")
+        self.logger.info(f"金字塔退出: {'已启用 ✅' if config.ENABLE_PYRAMIDING_EXIT else '已禁用'}")
+        self.logger.info(f"总余额: {status['total_balance']:.2f} USDT")
+        self.logger.info(f"可用余额: {status['available_balance']:.2f} USDT")
+        self.logger.info(f"持仓数量: {status['position_count']}")
+        self.logger.info(f"今日交易: {status['daily_trades']}/{config.MAX_DAILY_TRADES}")
+        self.logger.info(f"今日盈亏: {status['daily_pnl']:.2f} USDT")
+        self.logger.info(f"交易状态: {'运行中' if status['trading_enabled'] else '已暂停: ' + status['halt_reason']}")
         self.logger.info("="*80)
 
     def _check_emergency_stop(self) -> bool:
         """检查紧急停止开关"""
         if config.ENABLE_EMERGENCY_STOP:
             if os.path.exists(config.EMERGENCY_STOP_FILE):
-                self.logger.error(f"🚨 EMERGENCY STOP FILE DETECTED: {config.EMERGENCY_STOP_FILE}")
-                self.risk_manager.halt_trading("Emergency stop activated")
+                self.logger.error(f"🚨 检测到紧急停止文件: {config.EMERGENCY_STOP_FILE}")
+                self.risk_manager.halt_trading("紧急停止已激活")
                 return True
         return False
 
@@ -184,9 +184,9 @@ class FuturesAutoTradingSystem:
             position = self.trader.positions[binance_symbol]
 
             self.logger.warning(
-                f"\n⚠️  RISK SIGNAL (FOMO加剧) detected for {symbol}!\n"
+                f"\n⚠️  检测到 {symbol} 的风险信号 (FOMO加剧)!\n"
                 f"   市场情绪过热，建议止盈离场\n"
-                f"   Current PnL: {position.unrealized_pnl_percent:.2f}%\n"
+                f"   当前盈亏: {position.unrealized_pnl_percent:.2f}%\n"
             )
 
             # 如果盈利，考虑部分止盈
@@ -201,17 +201,17 @@ class FuturesAutoTradingSystem:
                         reason="FOMO加剧风险信号 - 自动止盈"
                     )
         else:
-            self.logger.info(f"⚠️  RISK signal for {symbol}, but no position held")
+            self.logger.info(f"⚠️  {symbol} 有风险信号，但未持仓")
 
     def _handle_confluence_signal(self, confluence):
         """处理聚合信号（买入信号）"""
         self.logger.warning("\n" + "🔥"*40)
-        self.logger.warning(f"CONFLUENCE SIGNAL DETECTED: {confluence}")
+        self.logger.warning(f"检测到聚合信号: {confluence}")
         self.logger.warning("🔥"*40 + "\n")
 
         # 3. 检查是否启用自动交易
         if not config.AUTO_TRADING_ENABLED:
-            self.logger.info("⏸️  Auto trading disabled, skipping execution (观察模式)")
+            self.logger.info("⏸️  自动交易已禁用，跳过执行 (观察模式)")
             return
 
         # 4. 获取当前价格
@@ -219,7 +219,7 @@ class FuturesAutoTradingSystem:
         current_price = self.trader.get_symbol_price(binance_symbol)
 
         if not current_price:
-            self.logger.error(f"Failed to get price for {binance_symbol}, skipping trade")
+            self.logger.error(f"获取 {binance_symbol} 价格失败，跳过交易")
             return
 
         # 5. 生成交易建议
@@ -229,7 +229,7 @@ class FuturesAutoTradingSystem:
             signal_score=confluence.score
         )
 
-        self.logger.info(f"Trade Recommendation: {recommendation.action} - {recommendation.reason}")
+        self.logger.info(f"交易建议: {recommendation.action} - {recommendation.reason}")
 
         # 6. 执行交易
         if recommendation.action == "BUY":
@@ -241,7 +241,7 @@ class FuturesAutoTradingSystem:
             )
 
             if success:
-                self.logger.info("✅ Trade executed successfully")
+                self.logger.info("✅ 交易执行成功")
 
                 # 添加到移动止损跟踪
                 if self.trailing_stop_manager:
@@ -259,7 +259,7 @@ class FuturesAutoTradingSystem:
                     )
 
             else:
-                self.logger.error("❌ Trade execution failed")
+                self.logger.error("❌ 交易执行失败")
 
     def monitor_positions(self):
         """定期监控持仓"""
@@ -274,8 +274,8 @@ class FuturesAutoTradingSystem:
             if risky:
                 for symbol, distance in risky:
                     self.logger.error(
-                        f"⚠️  HIGH LIQUIDATION RISK: {symbol} "
-                        f"only {distance:.1f}% from liquidation!"
+                        f"⚠️  高强平风险: {symbol} "
+                        f"距离强平仅 {distance:.1f}%!"
                     )
 
             self.last_position_monitor = now
@@ -303,8 +303,8 @@ class FuturesAutoTradingSystem:
 
             if trigger:
                 # 触发移动止损，立即平仓
-                self.logger.warning(f"🛑 Trailing stop triggered for {symbol}")
-                self.trader.close_position(symbol, reason="Trailing stop")
+                self.logger.warning(f"🛑 {symbol} 触发追踪止损")
+                self.trader.close_position(symbol, reason="追踪止损")
 
                 # 移除分批止盈跟踪
                 if self.pyramiding_manager:
@@ -329,14 +329,14 @@ class FuturesAutoTradingSystem:
                 profit_pct, close_ratio, level_idx = exit_trigger
 
                 self.logger.info(
-                    f"🎯 Pyramiding exit Level {level_idx+1} triggered for {symbol}: "
-                    f"Profit {profit_pct:.2f}%, closing {close_ratio*100:.0f}%"
+                    f"🎯 {symbol} 触发金字塔退出 Level {level_idx+1}: "
+                    f"盈利 {profit_pct:.2f}%, 平仓 {close_ratio*100:.0f}%"
                 )
 
                 # 部分平仓
                 if close_ratio >= 1.0:
                     # 全部平仓
-                    self.trader.close_position(symbol, reason=f"Pyramiding exit Level {level_idx+1}")
+                    self.trader.close_position(symbol, reason=f"金字塔退出 Level {level_idx+1}")
 
                     # 清理跟踪
                     if self.trailing_stop_manager:
@@ -347,7 +347,7 @@ class FuturesAutoTradingSystem:
                     self.trader.partial_close_position(
                         symbol,
                         close_ratio,
-                        reason=f"Pyramiding exit Level {level_idx+1}"
+                        reason=f"金字塔退出 Level {level_idx+1}"
                     )
 
     def update_balance(self):
@@ -363,8 +363,8 @@ class FuturesAutoTradingSystem:
         运行模式：独立模式
         仅运行交易系统，手动调用 process_signal() 处理信号
         """
-        self.logger.info("📡 Running in standalone mode (FUTURES)")
-        self.logger.info("Waiting for external signals via process_signal() method...")
+        self.logger.info("📡 以独立模式运行 (期货)")
+        self.logger.info("等待通过 process_signal() 方法接收外部信号...")
 
         try:
             while True:
@@ -381,31 +381,31 @@ class FuturesAutoTradingSystem:
                     # 打印信号统计
                     stats = self.signal_aggregator.get_pending_signals_count()
                     self.logger.info(
-                        f"📊 Signal Buffer: "
-                        f"FOMO={stats['fomo']} ({stats['symbols_with_fomo']} symbols), "
-                        f"ALPHA={stats['alpha']} ({stats['symbols_with_alpha']} symbols)"
+                        f"📊 信号缓冲: "
+                        f"FOMO={stats['fomo']} ({stats['symbols_with_fomo']} 个标的), "
+                        f"ALPHA={stats['alpha']} ({stats['symbols_with_alpha']} 个标的)"
                     )
 
                 time.sleep(1)
 
         except KeyboardInterrupt:
-            self.logger.info("\n🛑 Shutting down...")
+            self.logger.info("\n🛑 正在关闭...")
             self._print_system_status()
 
 
 def main():
     """主函数"""
     print("\n" + "="*80)
-    print("🚀 Binance FUTURES Auto Trading System - ValueScan Signal Based")
+    print("🚀 币安合约自动交易系统 - 基于 ValueScan 信号")
     print("="*80)
-    print("\n⚠️  WARNING: This is FUTURES trading with LEVERAGE")
-    print("   High risk, high reward. Trade responsibly!")
-    print("\nSelect running mode:")
-    print("1. Standalone mode (manual signal input)")
-    print("2. Test signal aggregation")
+    print("\n⚠️  警告: 这是带杠杆的期货交易")
+    print("   高风险，高收益。请谨慎交易！")
+    print("\n选择运行模式:")
+    print("1. 独立模式 (手动输入信号)")
+    print("2. 测试信号聚合")
     print()
 
-    choice = input("Enter choice (1/2): ").strip()
+    choice = input("输入选择 (1/2): ").strip()
 
     if choice == "2":
         # 测试模式
@@ -418,7 +418,7 @@ def main():
     if choice == "1":
         system.run_standalone()
     else:
-        print("Invalid choice")
+        print("无效选择")
 
 
 def test_signal_aggregation():
