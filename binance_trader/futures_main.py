@@ -423,37 +423,44 @@ def main():
 
 def test_signal_aggregation():
     """测试信号聚合功能"""
-    print("\n🧪 Testing Signal Aggregation...\n")
+    print("\n🧪 测试信号聚合功能...\n")
 
     aggregator = SignalAggregator(
         time_window=300,
-        min_score=0.6,
-        enable_fomo_intensify=True
+        min_score=0.6
     )
 
     # 模拟信号
-    print("1️⃣ Adding FOMO signal for BTC...")
+    print("1️⃣ 添加 BTC 的 FOMO 信号...")
     result1 = aggregator.add_signal(113, "msg1", "BTC", {})
-    print(f"   Result: {result1}\n")
+    print(f"   结果: {result1}\n")
 
-    print("2️⃣ Adding Alpha signal for BTC...")
+    print("2️⃣ 添加 BTC 的 Alpha 信号...")
     result2 = aggregator.add_signal(110, "msg2", "BTC", {})
-    print(f"   Result: {result2}\n")
+    print(f"   结果: {result2}\n")
 
     if result2:
-        print("✅ Confluence detected successfully!")
-        print(f"   Symbol: {result2.symbol}")
-        print(f"   Time Gap: {result2.time_gap:.2f}s")
-        print(f"   Score: {result2.score:.2f}")
+        print("✅ 信号聚合成功！")
+        print(f"   标的: {result2.symbol}")
+        print(f"   时间差: {result2.time_gap:.2f}秒")
+        print(f"   评分: {result2.score:.2f}")
     else:
-        print("❌ No confluence detected (this shouldn't happen)")
+        print("❌ 未检测到信号聚合（不应该发生）")
 
-    print("\n3️⃣ Adding FOMO signal for ETH (no Alpha)...")
+    print("\n3️⃣ 添加 ETH 的 FOMO 信号（无 Alpha 信号）...")
     result3 = aggregator.add_signal(113, "msg3", "ETH", {})
-    print(f"   Result: {result3} (expected None)\n")
+    print(f"   结果: {result3} (预期为 None)\n")
+
+    print("4️⃣ 添加 BTC 的风险信号 (Type 112 - FOMO加剧)...")
+    result4 = aggregator.add_signal(112, "msg4", "BTC", {})
+    print(f"   结果: {result4} (风险信号不触发聚合)\n")
+
+    # 检查风险信号
+    has_risk = aggregator.check_risk_signal("BTC")
+    print(f"⚠️  BTC 是否有风险信号: {has_risk}")
 
     stats = aggregator.get_pending_signals_count()
-    print(f"📊 Pending signals: {stats}")
+    print(f"\n📊 待匹配信号统计: {stats}")
 
 
 if __name__ == "__main__":

@@ -92,11 +92,11 @@ class SignalAggregator:
         self.logger = logging.getLogger(__name__)
 
         self.logger.info(
-            f"SignalAggregator initialized: "
-            f"time_window={time_window}s, min_score={min_score}"
+            f"信号聚合器已初始化: "
+            f"时间窗口={time_window}秒, 最低评分={min_score}"
         )
-        self.logger.info("📊 Signal Types: Type 113 (FOMO) + Type 110 (Alpha) = BUY")
-        self.logger.info("⚠️  Signal Types: Type 112 (FOMO加剧) = RISK (应止盈)")
+        self.logger.info("📊 信号类型: Type 113 (FOMO) + Type 110 (Alpha) = 买入")
+        self.logger.info("⚠️  信号类型: Type 112 (FOMO加剧) = 风险信号 (应止盈)")
 
 
     def add_signal(self, message_type: int, message_id: str,
@@ -115,13 +115,13 @@ class SignalAggregator:
         """
         # 防重复
         if message_id in self.processed_signal_ids:
-            self.logger.debug(f"Signal {message_id} already processed, skipping")
+            self.logger.debug(f"信号 {message_id} 已处理过，跳过")
             return None
 
         # 判断信号类型
         signal_type = self._get_signal_type(message_type)
         if not signal_type:
-            self.logger.debug(f"Message type {message_type} not tracked")
+            self.logger.debug(f"消息类型 {message_type} 不在追踪范围内")
             return None
 
         # 创建信号对象
@@ -137,13 +137,13 @@ class SignalAggregator:
         # 添加到对应缓存
         if signal_type == "FOMO":
             self.fomo_signals[signal.symbol].append(signal)
-            self.logger.info(f"📢 New FOMO signal: {signal.symbol} (Type 113)")
+            self.logger.info(f"📢 新 FOMO 信号: {signal.symbol} (Type 113)")
         elif signal_type == "ALPHA":
             self.alpha_signals[signal.symbol].append(signal)
-            self.logger.info(f"🎯 New ALPHA signal: {signal.symbol} (Type 110)")
+            self.logger.info(f"🎯 新 Alpha 信号: {signal.symbol} (Type 110)")
         elif signal_type == "RISK":
             self.risk_signals[signal.symbol].append(signal)
-            self.logger.warning(f"⚠️  RISK signal detected: {signal.symbol} (Type 112 - FOMO加剧，建议止盈)")
+            self.logger.warning(f"⚠️  风险信号检测到: {signal.symbol} (Type 112 - FOMO加剧，建议止盈)")
 
         self.processed_signal_ids.add(message_id)
 
@@ -155,8 +155,8 @@ class SignalAggregator:
 
         if confluence:
             self.logger.warning(
-                f"🔥 CONFLUENCE DETECTED: {confluence.symbol} "
-                f"(gap={confluence.time_gap:.1f}s, score={confluence.score:.2f})"
+                f"🔥 信号聚合成功: {confluence.symbol} "
+                f"(时间差={confluence.time_gap:.1f}秒, 评分={confluence.score:.2f})"
             )
             self.confluence_signals.append(confluence)
 
@@ -219,7 +219,7 @@ class SignalAggregator:
 
         if score < self.min_score:
             self.logger.info(
-                f"Match found for {symbol} but score {score:.2f} < {self.min_score}, skipping"
+                f"找到 {symbol} 的信号匹配，但评分 {score:.2f} < {self.min_score}，跳过"
             )
             return None
 
@@ -271,9 +271,9 @@ class SignalAggregator:
         )
 
         self.logger.debug(
-            f"Score calculation for {fomo.symbol}: "
-            f"time={time_score:.2f}, strength={fomo_strength:.2f}, "
-            f"freshness={freshness_score:.2f} -> total={total_score:.2f}"
+            f"{fomo.symbol} 评分计算: "
+            f"时间接近度={time_score:.2f}, FOMO强度={fomo_strength:.2f}, "
+            f"新鲜度={freshness_score:.2f} -> 总分={total_score:.2f}"
         )
 
         return total_score
