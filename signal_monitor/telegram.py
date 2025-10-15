@@ -813,6 +813,57 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         
         return "\n".join(message_parts)
     
+    # Type 112 FOMO加剧 - 特殊格式（风险信号，注意止盈）
+    elif msg_type == 112:
+        emoji = "🔥"
+        title = f"<b>${symbol} FOMO 情绪加剧</b>"
+        funds_text = FUNDS_MOVEMENT_MAP.get(funds_type, 'N/A')
+        tag = "#FOMO加剧"
+
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"⚠️ <b>市场情绪过热，注意止盈</b>",
+            f"🌡️ FOMO 情绪达到高位，防范突发回调风险",
+            f"💵 现价: <b>${price}</b>",
+        ]
+
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+
+            # 如果涨幅较大，额外强调风险
+            if change_24h > 15:
+                message_parts.append(f"🔥 短期涨幅较大，回调风险显著增加")
+            elif change_24h > 10:
+                message_parts.append(f"⚠️ 短期涨幅偏大，注意获利了结")
+
+        if 'tradeType' in content:
+            trade_type = content.get('tradeType')
+            trade_text = TRADE_TYPE_MAP.get(trade_type, 'N/A')
+            message_parts.append(f"📊 类型: {trade_text}")
+
+        if funds_type:
+            message_parts.append(f"💼 资金状态: {funds_text}")
+
+        message_parts.extend([
+            f"",
+            f"💡 风险提示:",
+            f"   • 🔥 <b>FOMO 情绪过热（风险信号）</b>",
+            f"   • 📉 市场可能面临突发回调",
+            f"   • 💰 <b>已持仓建议分批止盈</b>",
+            f"   • 🛑 <b>不建议追高买入</b>",
+            f"   • 🎯 可设置移动止损保护利润",
+            f"   • ⏰ 密切关注价格走势变化",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
+        ])
+
+        return "\n".join(message_parts)
+
     # Type 111 资金出逃 - 特殊格式
     elif msg_type == 111:
         emoji = "🚨"
