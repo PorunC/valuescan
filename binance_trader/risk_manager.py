@@ -96,6 +96,9 @@ class RiskManager:
         self.halt_reason: str = ""
 
         self.logger = logging.getLogger(__name__)
+        self._last_balance_log_time: Optional[datetime] = None
+        self._last_logged_total_balance: Optional[float] = None
+        self._last_logged_available_balance: Optional[float] = None
         self.logger.info(
             f"风险管理器已初始化: "
             f"单标的最大仓位={max_position_percent}%, "
@@ -108,10 +111,27 @@ class RiskManager:
         """更新账户余额"""
         self.total_balance = total_balance
         self.available_balance = available_balance
-        self.logger.info(
-            f"余额已更新: 总额={total_balance:.2f} USDT, "
-            f"可用={available_balance:.2f} USDT"
-        )
+        now = datetime.now()
+        should_log = False
+
+        if self._last_balance_log_time is None:
+            should_log = True
+        elif now - self._last_balance_log_time >= timedelta(hours=1):
+            should_log = True
+        elif (
+            self._last_logged_total_balance != total_balance
+            or self._last_logged_available_balance != available_balance
+        ):
+            should_log = True
+
+        if should_log:
+            self.logger.info(
+                f"余额已更新: 总额={total_balance:.2f} USDT, "
+                f"可用={available_balance:.2f} USDT"
+            )
+            self._last_balance_log_time = now
+            self._last_logged_total_balance = total_balance
+            self._last_logged_available_balance = available_balance
 
     def add_position(self, symbol: str, quantity: float,
                      entry_price: float, entry_time: datetime = None):
