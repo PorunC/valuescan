@@ -72,6 +72,34 @@ cp binance_trader/config.example.py binance_trader/config.py
 # Edit both config files with your credentials
 ```
 
+### Integrated System via IPC Bridge
+```bash
+# Terminal 1: Start the trading system IPC bridge
+python valuescan_futures_bridge.py
+# This starts a TCP server on 127.0.0.1:8765 listening for signals
+
+# Terminal 2: Start the signal monitor with IPC forwarding enabled
+cd signal_monitor
+# Edit config.py: set ENABLE_IPC_FORWARDING = True
+python start_with_chrome.py
+
+# Now signals flow automatically: Signal Monitor → IPC Bridge → Binance Trader
+```
+
+### Testing Commands
+```bash
+# Test signal aggregation logic
+cd binance_trader
+python futures_main.py  # Choose option 2
+
+# Test trader with manual signals
+python test_trader.py
+
+# Test specific predict types
+python test_predictType3.py
+python test_all_predict_types.py
+```
+
 ## Architecture
 
 The project follows a modular two-tier architecture:
@@ -113,15 +141,29 @@ ValueScan.io API → Signal Monitor → Telegram Notifications
    - Tracks processed message IDs to prevent duplicate Telegram notifications
    - Singleton pattern via `get_database()`
 
-**Message Type System**:
-- Type 100: AI tracking alerts with multiple `predictType` variants (2, 4, 5, 7, 8, 16, 17, 19, 24, 28-31)
-- Type 108: Fund movements
+**Message Type System** (see [message_types.py](signal_monitor/message_types.py) for complete mappings):
+- Type 100: AI tracking alerts with `predictType` variants:
+  - 2: Main force fleeing (risk increase)
+  - 3: Main force accumulating (bullish sentiment)
+  - 4/7: Main force reducing (risk signal)
+  - 5: AI tracking started (potential token)
+  - 8: Trend reversal (downtrend weakening)
+  - 16: Take-profit on rise (10%+ gain)
+  - 17: Take-profit on pullback (15%+ pullback)
+  - 19: Stop-loss on drop (15%+ loss)
+  - 24: Price peak warning (potential top)
+  - 28: Accelerating accumulation (opportunity)
+  - 29: Accelerating distribution (risk)
+  - 30/31: Principal protection levels (5-15% moves)
+- Type 108: Fund movements (1=24H inflow, 2=Extended inflow, 3=Sustained inflow, 4=Suspected outflow, 5=Volume surge, 6/7=Take-profit signals)
 - Type 109: Listing/delisting announcements
 - Type 110: Alpha opportunities (BUY signal when combined with FOMO)
 - Type 111: Capital flight
 - Type 112: FOMO intensification (RISK signal - should trigger take-profit, NOT buy)
 - Type 113: FOMO alerts (BUY signal when combined with Alpha)
-- Type 114: Abnormal fund activity
+- Type 114: Abnormal fund activity with price movement (take-profit signal)
+
+**Forwarded to Trading System**: Only types 110, 112, 113 are forwarded via IPC as they are actionable trading signals.
 
 Each type has custom Telegram formatting in [telegram.py](signal_monitor/telegram.py).
 
@@ -264,10 +306,42 @@ The `chrome-debug-profile` directory is critical for signal monitor:
 
 ### Module Integration
 
-`futures_main.py` runs as a standalone process. To integrate with the signal monitor:
-- Run the monitor independently: `cd signal_monitor && python start_with_chrome.py`
-- Run the futures trader: `cd binance_trader && python futures_main.py` (choose Mode 1)
-- Forward matched signals to `FuturesAutoTradingSystem.process_signal(...)` via your preferred IPC/queue/HTTP bridge
+**Three Integration Methods**:
+
+1. **IPC Bridge (Recommended for Production)**:
+   ```bash
+   # Start IPC bridge server
+   python valuescan_futures_bridge.py
+
+   # In signal_monitor/config.py:
+   ENABLE_IPC_FORWARDING = True
+   IPC_HOST = "127.0.0.1"  # From ipc_config.py
+   IPC_PORT = 8765         # From ipc_config.py
+
+   # Start signal monitor
+   cd signal_monitor && python start_with_chrome.py
+   ```
+
+   **How it works**:
+   - [valuescan_futures_bridge.py](valuescan_futures_bridge.py): TCP server listening on `127.0.0.1:8765`
+   - [ipc_client.py](signal_monitor/ipc_client.py): Forwards signals (types 110, 112, 113) as JSON lines
+   - [ipc_config.py](ipc_config.py): Shared configuration (host, port, timeouts, retries)
+   - Signal flow: `signal_monitor` → TCP socket → `SignalTCPServer` → `FuturesAutoTradingSystem.process_signal()`
+   - Automatic symbol extraction from message title/content
+   - Retry logic with configurable timeouts (default: 3 retries, 1.5s timeout)
+
+2. **Standalone Mode**:
+   ```bash
+   cd binance_trader
+   python futures_main.py  # Choose Mode 1
+   # Manually input signals or integrate via custom bridge
+   ```
+
+3. **Test Mode** (signal aggregation testing):
+   ```bash
+   cd binance_trader
+   python futures_main.py  # Choose Mode 2
+   ```
 
 ### Deployment Best Practices
 
@@ -280,10 +354,30 @@ The `chrome-debug-profile` directory is critical for signal monitor:
 
 **Production Deployment** (Linux):
 - Signal monitor: Headless mode mandatory (HEADLESS_MODE = True)
+- IPC bridge: Run as a separate service (`python valuescan_futures_bridge.py`)
 - Binance trader: Start with testnet, small capital
 - Use systemd for process management (see README.md "Linux 服务器部署")
+- Recommended setup: 3 systemd services (signal_monitor, ipc_bridge, binance_trader) or use the bridge which runs trader internally
 - Monitor logs regularly
 - Set up Telegram alerts for trading events
+
+**Systemd Service Example for IPC Bridge**:
+```ini
+[Unit]
+Description=ValueScan IPC Bridge
+After=network.target
+
+[Service]
+Type=simple
+User=your_username
+WorkingDirectory=/path/to/valuescan
+ExecStart=/path/to/venv/bin/python valuescan_futures_bridge.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
 
 ### Message Processing Order
 
@@ -298,6 +392,36 @@ Messages are reversed before sending to Telegram (`reversed(new_messages)`) so n
 ### API Monitoring Mechanics
 
 Uses DrissionPage's `page.listen.start(API_PATH)` to intercept network requests. The listener yields packets indefinitely in `page.listen.steps()`. This is non-blocking and captures all matching API responses.
+
+### IPC Signal Format
+
+When `ENABLE_IPC_FORWARDING = True`, signals are forwarded as JSON lines over TCP:
+
+```json
+{
+  "message_type": 113,
+  "message_id": "12345",
+  "title": "$BTC FOMO Alert",
+  "symbol_hint": "BTC",
+  "created_time": "2024-10-13 12:34:56",
+  "data": {
+    "raw_message": { /* original API response */ },
+    "content": { /* parsed content */ }
+  }
+}
+```
+
+**Symbol Extraction Hierarchy** (in [valuescan_futures_bridge.py](valuescan_futures_bridge.py)):
+1. `symbol_hint` from IPC payload
+2. `data.content.symbol`, `data.content.pair`, or `data.content.symbolName`
+3. `data.raw_message.symbol`
+4. First word of `data.raw_message.title`
+
+**Symbol Normalization**:
+- Strips `$` prefix (e.g., `$BTC` → `BTC`)
+- Removes `/USDT` suffix if present
+- Converts to uppercase
+- Extracts base symbol from pairs (e.g., `BTC/USDT` → `BTC`)
 
 ### Position Sizing Formula
 
@@ -335,3 +459,100 @@ When modifying the system, respect this priority order:
 - Do NOT use as a buy signal
 
 This distinction is critical for the trading strategy. Misinterpreting Type 112 as a buy signal will lead to poor entries at market tops.
+
+## Common Issues and Solutions
+
+### IPC Connection Problems
+
+**Issue**: Signal monitor can't connect to IPC bridge
+```
+IPC 信号发送失败 (第 1 次尝试): Connection refused
+```
+
+**Solutions**:
+1. Ensure IPC bridge is running: `python valuescan_futures_bridge.py`
+2. Check port availability: `netstat -an | grep 8765` (Linux/macOS) or `netstat -an | findstr 8765` (Windows)
+3. Verify firewall allows localhost connections on port 8765
+4. Check `ipc_config.py` settings match in both modules
+
+**Issue**: Signals not reaching trading system
+
+**Debug steps**:
+1. Check signal monitor logs for "📡 IPC 已转发信号" messages
+2. Check IPC bridge logs for "➡️ 收到信号" messages
+3. Verify `ENABLE_IPC_FORWARDING = True` in `signal_monitor/config.py`
+4. Ensure message types are 110, 112, or 113 (other types are not forwarded)
+5. Check symbol extraction succeeded (not None)
+
+### Symbol Extraction Failures
+
+**Issue**: Trading system skips signals due to missing symbol
+
+**Debug**:
+- Check IPC bridge logs for "无法解析标的符号" warnings
+- Verify message has symbol in title, content, or raw data
+- Check if symbol format is recognized (should be like `BTC`, `$BTC`, `BTC/USDT`)
+
+**Fix**: Update symbol extraction logic in [valuescan_futures_bridge.py](valuescan_futures_bridge.py) `_extract_symbol()` function
+
+### Chrome Process Conflicts
+
+**Issue**: "Handshake status 404 Not Found" when starting signal monitor
+
+**Cause**: Multiple Chrome instances trying to use same user data directory
+
+**Solution**:
+```bash
+# Kill all Chrome processes
+cd signal_monitor
+python kill_chrome.py
+
+# Or manually (Linux/macOS)
+pkill -f "(google-chrome|chromium-browser|chromium).*--"
+
+# Windows
+taskkill /F /IM chrome.exe /T
+```
+
+### Testing Without Real Trading
+
+**Safe testing workflow**:
+```bash
+# 1. Test signal aggregation only (no API calls)
+cd binance_trader
+python futures_main.py  # Choose Mode 2
+
+# 2. Test with observation mode (connects to exchange but doesn't trade)
+# In binance_trader/config.py:
+AUTO_TRADING_ENABLED = False
+
+# 3. Use testnet for real order testing
+USE_TESTNET = True
+BINANCE_FUTURES_TESTNET_URL = "https://testnet.binancefuture.com/fapi"
+```
+
+### Network Connection Issues
+
+**Issue**: "Remote end closed connection without response" in maintenance loop
+
+**Cause**: Binance API server temporarily drops connections (common during high load or network issues)
+
+**Solution**: The system now has automatic retry logic:
+- Network errors are logged as warnings (not errors)
+- Previous data is retained when updates fail
+- Maintenance loop tolerates up to 10 consecutive failures before stopping
+- 5-second wait between retries to avoid error storms
+
+**Expected behavior**:
+```
+2025-10-18 21:43:43 [WARNING] 更新持仓失败 (网络错误): Remote end closed...
+2025-10-18 21:43:48 [WARNING] 维护循环发生异常 (第 1 次): ...
+# System automatically retries after 5 seconds
+2025-10-18 21:43:53 [INFO] 持仓更新成功
+# Error counter resets to 0
+```
+
+**When to worry**:
+- Only if you see "维护循环连续失败 10 次，停止运行"
+- This indicates sustained network issues or API problems
+- Check your internet connection and Binance API status

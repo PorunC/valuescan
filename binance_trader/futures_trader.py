@@ -115,7 +115,10 @@ class BinanceFuturesTrader:
             self.logger.debug(f"账户余额: 总额={total_wallet_balance}, 可用={available_balance}")
             return total_wallet_balance, available_balance
         except BinanceAPIException as e:
-            self.logger.error(f"获取账户余额失败: {e}")
+            self.logger.error(f"获取账户余额失败 (Binance API): {e}")
+            return 0.0, 0.0
+        except Exception as e:
+            self.logger.warning(f"获取账户余额失败 (网络错误): {e}")
             return 0.0, 0.0
 
     def update_risk_manager_balance(self):
@@ -129,7 +132,10 @@ class BinanceFuturesTrader:
             ticker = self.client.futures_mark_price(symbol=symbol)
             return float(ticker['markPrice'])
         except BinanceAPIException as e:
-            self.logger.error(f"获取 {symbol} 价格失败: {e}")
+            self.logger.error(f"获取 {symbol} 价格失败 (Binance API): {e}")
+            return None
+        except Exception as e:
+            self.logger.warning(f"获取 {symbol} 价格失败 (网络错误): {e}")
             return None
 
     def set_leverage(self, symbol: str, leverage: int) -> bool:
@@ -174,7 +180,10 @@ class BinanceFuturesTrader:
                     return PositionInfo(pos)
             return None
         except BinanceAPIException as e:
-            self.logger.error(f"获取 {symbol} 持仓信息失败: {e}")
+            self.logger.error(f"获取 {symbol} 持仓信息失败 (Binance API): {e}")
+            return None
+        except Exception as e:
+            self.logger.warning(f"获取 {symbol} 持仓信息失败 (网络错误): {e}")
             return None
 
     def calculate_quantity(self, symbol: str, usdt_amount: float,
@@ -493,7 +502,11 @@ class BinanceFuturesTrader:
             self.positions = updated_positions
 
         except BinanceAPIException as e:
-            self.logger.error(f"更新持仓失败: {e}")
+            self.logger.error(f"更新持仓失败 (Binance API): {e}")
+        except Exception as e:
+            # 捕获网络连接错误等其他异常
+            self.logger.warning(f"更新持仓失败 (网络错误): {e}")
+            # 保留之前的持仓数据，不做更新
 
     def monitor_positions(self):
         """监控持仓状态并更新价格"""

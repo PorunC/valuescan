@@ -139,16 +139,41 @@ def start_maintenance_loop(system: FuturesAutoTradingSystem, stop_event: threadi
     """
     维护风控、移动止损等定时任务，保持与原有独立模式一致
     """
-    try:
-        while not stop_event.is_set():
+    consecutive_errors = 0
+    max_consecutive_errors = 10
+
+    while not stop_event.is_set():
+        try:
             system.monitor_positions()
             system.check_trailing_stops()
             system.check_pyramiding_exits()
             system.update_balance()
+
+            # 操作成功，重置错误计数
+            consecutive_errors = 0
             time.sleep(1)
-    except Exception:
-        LOGGER.exception("维护循环发生异常")
-        stop_event.set()
+
+        except KeyboardInterrupt:
+            LOGGER.info("维护循环收到中断信号")
+            stop_event.set()
+            break
+
+        except Exception as e:
+            consecutive_errors += 1
+            LOGGER.warning(
+                f"维护循环发生异常 (第 {consecutive_errors} 次): {e}"
+            )
+
+            # 如果连续错误太多，退出循环
+            if consecutive_errors >= max_consecutive_errors:
+                LOGGER.error(
+                    f"维护循环连续失败 {max_consecutive_errors} 次，停止运行"
+                )
+                stop_event.set()
+                break
+
+            # 等待后重试，避免错误风暴
+            time.sleep(5)
 
 
 def main():
