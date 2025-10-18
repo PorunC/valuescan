@@ -119,7 +119,7 @@ def print_message_details(item, idx=None):
             pass
 
 
-def process_message_item(item, idx=None, send_to_telegram=False):
+def process_message_item(item, idx=None, send_to_telegram=False, signal_callback=None):
     """
     处理单条消息：打印详情并可选发送到 Telegram
     
@@ -146,14 +146,23 @@ def process_message_item(item, idx=None, send_to_telegram=False):
     title = item.get('title')
     created_time = item.get('createTime')
     symbol = None
+    parsed_content = None
     
     # 尝试从 content 中提取币种符号
     if 'content' in item and item['content']:
         try:
-            content = json.loads(item['content'])
-            symbol = content.get('symbol')
-        except:
+            parsed_content = json.loads(item['content'])
+            symbol = parsed_content.get('symbol')
+        except Exception:
             pass
+
+    def _invoke_callback():
+        if not signal_callback:
+            return
+        try:
+            signal_callback(item, parsed_content)
+        except Exception as callback_error:
+            logger.exception(f"信号回调执行失败: {callback_error}")
     
     # 发送到 Telegram（如果启用）
     if send_to_telegram:
@@ -164,10 +173,12 @@ def process_message_item(item, idx=None, send_to_telegram=False):
             if msg_id:
                 if mark_message_processed(msg_id, msg_type, symbol, title, created_time):
                     logger.info(f"✅ 消息 ID {msg_id} 已记录到数据库")
+                    _invoke_callback()
                     return True  # 发送并记录成功
                 else:
                     logger.warning(f"⚠️ 消息 ID {msg_id} 记录到数据库失败")
                     return False  # 记录失败，下次重试
+            _invoke_callback()
             return True  # 没有 msg_id，但发送成功
         else:
             logger.warning(f"⚠️ Telegram 发送失败，消息 ID {msg_id} 未记录到数据库")
@@ -177,12 +188,14 @@ def process_message_item(item, idx=None, send_to_telegram=False):
         if msg_id:
             if mark_message_processed(msg_id, msg_type, symbol, title, created_time):
                 logger.info(f"✅ 消息 ID {msg_id} 已记录到数据库（未发送 TG）")
+                _invoke_callback()
                 return True  # 记录成功
             return False  # 记录失败
+        _invoke_callback()
         return True  # 没有 msg_id，直接返回成功
 
 
-def process_response_data(response_data, send_to_telegram=False, seen_ids=None):
+def process_response_data(response_data, send_to_telegram=False, seen_ids=None, signal_callback=None):
     """
     处理 API 响应数据
     
@@ -190,6 +203,7 @@ def process_response_data(response_data, send_to_telegram=False, seen_ids=None):
         response_data: API 响应的 JSON 数据
         send_to_telegram: 是否将消息发送到 Telegram
         seen_ids: 已见过的消息 ID 集合（用于去重）
+        signal_callback: 新消息回调函数（可选）
     
     Returns:
         int: 新消息数量
@@ -245,7 +259,12 @@ def process_response_data(response_data, send_to_telegram=False, seen_ids=None):
             # 倒序发送消息（最新的消息最先发送到 Telegram）
             for idx, item in enumerate(reversed(new_messages), 1):
                 # 处理消息，成功后才添加到 seen_ids（防止发送失败时被标记为已处理）
-                success = process_message_item(item, idx, send_to_telegram)
+                success = process_message_item(
+                    item,
+                    idx,
+                    send_to_telegram,
+                    signal_callback=signal_callback
+                )
                 if success and seen_ids is not None:
                     msg_id = item.get('id')
                     if msg_id:

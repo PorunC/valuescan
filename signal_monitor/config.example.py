@@ -30,6 +30,20 @@ HEADLESS_MODE = False
 # 监听的 API 路径（部分匹配）
 API_PATH = "api/account/message/getWarnMessage"
 
+# ==================== 本地 IPC 转发 ====================
+# 是否将捕获到的信号通过本地 IPC 转发给交易模块
+ENABLE_IPC_FORWARDING = True
+
+try:
+    # 与交易端共享的 IPC 基础配置
+    from ipc_config import IPC_HOST, IPC_PORT, IPC_CONNECT_TIMEOUT, IPC_RETRY_DELAY, IPC_MAX_RETRIES
+except ImportError:
+    IPC_HOST = "127.0.0.1"
+    IPC_PORT = 8765
+    IPC_CONNECT_TIMEOUT = 1.5
+    IPC_RETRY_DELAY = 2.0
+    IPC_MAX_RETRIES = 3
+
 # ==================== 日志配置 ====================
 # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 # DEBUG: 详细的调试信息

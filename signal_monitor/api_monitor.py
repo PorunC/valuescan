@@ -9,7 +9,33 @@ import platform
 import os
 from datetime import datetime, timezone, timedelta
 from DrissionPage import ChromiumPage, ChromiumOptions
-from logger import logger
+
+try:
+    from .logger import logger
+    from .config import (
+        API_PATH,
+        CHROME_DEBUG_PORT,
+        SEND_TG_IN_MODE_1,
+        ENABLE_IPC_FORWARDING,
+    )
+    from .message_handler import process_response_data
+    try:
+        from .ipc_client import forward_signal as default_signal_callback
+    except ImportError:
+        default_signal_callback = None
+except ImportError:  # 兼容脚本执行
+    from logger import logger
+    from config import (
+        API_PATH,
+        CHROME_DEBUG_PORT,
+        SEND_TG_IN_MODE_1,
+        ENABLE_IPC_FORWARDING,
+    )
+    from message_handler import process_response_data
+    try:
+        from ipc_client import forward_signal as default_signal_callback
+    except ImportError:
+        default_signal_callback = None
 
 # 北京时区 (UTC+8)
 BEIJING_TZ = timezone(timedelta(hours=8))
@@ -27,8 +53,6 @@ def get_beijing_time_str(format_str='%Y-%m-%d %H:%M:%S'):
     """
     dt = datetime.now(tz=BEIJING_TZ)
     return dt.strftime(format_str) + ' (UTC+8)'
-from config import API_PATH, CHROME_DEBUG_PORT, SEND_TG_IN_MODE_1
-from message_handler import process_response_data
 
 
 def _get_chrome_paths():
@@ -107,14 +131,18 @@ def _kill_chrome_processes():
         logger.warning(f"清理 Chrome 进程时出现问题: {e}")
 
 
-def capture_api_request(headless=False):
+def capture_api_request(headless=False, signal_callback=None):
     """
     连接到调试模式的浏览器并监听 API 请求
     使用当前目录下的 Chrome 用户数据
     
     Args:
         headless: 是否使用无头模式（不显示浏览器窗口）
+        signal_callback: 新消息回调（可选）
     """
+    if signal_callback is None and ENABLE_IPC_FORWARDING and default_signal_callback:
+        signal_callback = default_signal_callback
+
     # 无头模式下先关闭所有 Chrome 进程，避免用户目录冲突
     if headless:
         _kill_chrome_processes()
@@ -267,7 +295,12 @@ def capture_api_request(headless=False):
                             response_data = response_body
                         
                         # 处理响应数据（启用去重，根据全局配置决定是否发送TG）
-                        process_response_data(response_data, send_to_telegram=SEND_TG_IN_MODE_1, seen_ids=seen_message_ids)
+                        process_response_data(
+                            response_data,
+                            send_to_telegram=SEND_TG_IN_MODE_1,
+                            seen_ids=seen_message_ids,
+                            signal_callback=signal_callback,
+                        )
                         
                         logger.info(f"  原始完整响应已省略，如需查看请修改代码")
                     except Exception as e:
