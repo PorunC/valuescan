@@ -205,9 +205,9 @@ class FuturesAutoTradingSystem:
 
     def _handle_confluence_signal(self, confluence):
         """处理聚合信号（买入信号）"""
-        self.logger.warning("\n" + "🔥"*40)
+        self.logger.warning("🔥"*40)
         self.logger.warning(f"检测到聚合信号: {confluence}")
-        self.logger.warning("🔥"*40 + "\n")
+        self.logger.warning("🔥"*40)
 
         # 3. 检查是否启用自动交易
         if not config.AUTO_TRADING_ENABLED:
