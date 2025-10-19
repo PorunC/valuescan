@@ -14,7 +14,12 @@ TELEGRAM_BOT_TOKEN = ""
 TELEGRAM_CHAT_ID = ""
 
 # ==================== 消息发送开关 ====================
-# 是否发送 TG 消息
+# 是否启用 Telegram 通知功能（总开关）
+# False: 完全跳过 Telegram 发送，但不影响数据库存储和 IPC 转发
+# True: 尝试发送 Telegram 通知
+ENABLE_TELEGRAM = True
+
+# 是否发送 TG 消息（需要 ENABLE_TELEGRAM = True 才有效）
 SEND_TG_IN_MODE_1 = True
 
 # ==================== 浏览器配置 ====================

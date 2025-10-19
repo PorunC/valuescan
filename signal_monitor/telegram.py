@@ -10,6 +10,12 @@ import requests
 from logger import logger
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
+# 尝试导入通知开关，如果不存在则使用默认值
+try:
+    from config import ENABLE_TELEGRAM
+except ImportError:
+    ENABLE_TELEGRAM = True  # 默认启用
+
 # 北京时区 (UTC+8)
 BEIJING_TZ = timezone(timedelta(hours=8))
 
@@ -34,13 +40,18 @@ def get_beijing_time_str(timestamp_ms, format_str='%H:%M:%S'):
 def send_telegram_message(message_text):
     """
     发送消息到 Telegram
-    
+
     Args:
         message_text: 要发送的消息文本（支持 HTML 格式）
-    
+
     Returns:
         bool: 发送成功返回 True，否则返回 False
     """
+    # 检查是否启用 Telegram 通知
+    if not ENABLE_TELEGRAM:
+        logger.info("  ⏭️  Telegram 通知已禁用，跳过发送")
+        return True  # 返回 True 以便继续后续流程（数据库存储等）
+
     if not TELEGRAM_BOT_TOKEN:
         logger.warning("  ⚠️ Telegram Bot Token 未配置，跳过发送")
         return False
