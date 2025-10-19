@@ -71,7 +71,7 @@ class SignalRequestHandler(socketserver.StreamRequestHandler):
 
     def handle(self):
         client = f"{self.client_address[0]}:{self.client_address[1]}"
-        LOGGER.info("📥 IPC 客户端已连接: %s", client)
+        LOGGER.debug("📥 IPC 客户端已连接: %s", client)  # 改为 DEBUG 级别
 
         for raw_line in self.rfile:
             line = raw_line.decode("utf-8", errors="ignore").strip()
@@ -86,7 +86,7 @@ class SignalRequestHandler(socketserver.StreamRequestHandler):
 
             self._process_payload(payload)
 
-        LOGGER.info("📤 IPC 客户端断开: %s", client)
+        LOGGER.debug("📤 IPC 客户端断开: %s", client)  # 改为 DEBUG 级别
 
     def _process_payload(self, payload: Dict[str, Any]):
         message_type = payload.get("message_type")

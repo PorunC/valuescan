@@ -139,20 +139,37 @@ class BinanceFuturesTrader:
             return None
 
     def set_leverage(self, symbol: str, leverage: int) -> bool:
-        """设置杠杆倍数"""
-        try:
-            result = self.client.futures_change_leverage(
-                symbol=symbol,
-                leverage=leverage
-            )
-            self.logger.info(f"✅ 设置 {symbol} 杠杆: {leverage}x")
-            return True
-        except BinanceAPIException as e:
-            if "No need to change leverage" in str(e):
-                self.logger.debug(f"{symbol} 杠杆已设为 {leverage}x")
+        """设置杠杆倍数（带重试机制）"""
+        max_retries = 3
+        retry_delay = 2  # 秒
+
+        for attempt in range(max_retries):
+            try:
+                result = self.client.futures_change_leverage(
+                    symbol=symbol,
+                    leverage=leverage
+                )
+                self.logger.info(f"✅ 设置 {symbol} 杠杆: {leverage}x")
                 return True
-            self.logger.error(f"设置 {symbol} 杠杆失败: {e}")
-            return False
+            except BinanceAPIException as e:
+                if "No need to change leverage" in str(e):
+                    self.logger.debug(f"{symbol} 杠杆已设为 {leverage}x")
+                    return True
+
+                # 超时错误，尝试重试
+                if e.code == -1007 or "Timeout" in str(e):
+                    if attempt < max_retries - 1:
+                        self.logger.warning(f"⏳ 设置杠杆超时，{retry_delay}秒后重试 ({attempt + 1}/{max_retries})")
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        self.logger.error(f"设置 {symbol} 杠杆失败（已重试{max_retries}次）: {e}")
+                        return False
+                else:
+                    self.logger.error(f"设置 {symbol} 杠杆失败: {e}")
+                    return False
+
+        return False
 
     def set_margin_type(self, symbol: str, margin_type: str) -> bool:
         """设置保证金模式"""
@@ -257,13 +274,15 @@ class BinanceFuturesTrader:
         binance_symbol = f"{recommendation.symbol}{symbol_suffix}"
 
         try:
-            # 1. 设置杠杆
-            if not self.set_leverage(binance_symbol, leverage):
-                return False
+            # 1. 设置杠杆（尽力而为，即使失败也继续）
+            leverage_set = self.set_leverage(binance_symbol, leverage)
+            if not leverage_set:
+                self.logger.warning(f"⚠️  设置杠杆失败，使用当前杠杆继续交易")
 
-            # 2. 设置保证金模式
-            if not self.set_margin_type(binance_symbol, margin_type):
-                return False
+            # 2. 设置保证金模式（尽力而为，即使失败也继续）
+            margin_set = self.set_margin_type(binance_symbol, margin_type)
+            if not margin_set:
+                self.logger.warning(f"⚠️  设置保证金模式失败，使用当前模式继续交易")
 
             # 3. 获取当前价格
             current_price = self.get_symbol_price(binance_symbol)
