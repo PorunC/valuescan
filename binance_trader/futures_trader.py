@@ -172,20 +172,37 @@ class BinanceFuturesTrader:
         return False
 
     def set_margin_type(self, symbol: str, margin_type: str) -> bool:
-        """设置保证金模式"""
-        try:
-            self.client.futures_change_margin_type(
-                symbol=symbol,
-                marginType=margin_type
-            )
-            self.logger.info(f"✅ 设置 {symbol} 保证金类型: {margin_type}")
-            return True
-        except BinanceAPIException as e:
-            if "No need to change margin type" in str(e):
-                self.logger.debug(f"{symbol} 保证金类型已设为 {margin_type}")
+        """设置保证金模式（带重试机制）"""
+        max_retries = 3
+        retry_delay = 2  # 秒
+
+        for attempt in range(max_retries):
+            try:
+                self.client.futures_change_margin_type(
+                    symbol=symbol,
+                    marginType=margin_type
+                )
+                self.logger.info(f"✅ 设置 {symbol} 保证金类型: {margin_type}")
                 return True
-            self.logger.error(f"设置 {symbol} 保证金类型失败: {e}")
-            return False
+            except BinanceAPIException as e:
+                if "No need to change margin type" in str(e):
+                    self.logger.debug(f"{symbol} 保证金类型已设为 {margin_type}")
+                    return True
+
+                # 超时错误，尝试重试
+                if e.code == -1007 or "Timeout" in str(e):
+                    if attempt < max_retries - 1:
+                        self.logger.warning(f"⏳ 设置保证金模式超时，{retry_delay}秒后重试 ({attempt + 1}/{max_retries})")
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        self.logger.error(f"设置 {symbol} 保证金类型失败（已重试{max_retries}次）: {e}")
+                        return False
+                else:
+                    self.logger.error(f"设置 {symbol} 保证金类型失败: {e}")
+                    return False
+
+        return False
 
     def get_position_info(self, symbol: str) -> Optional[PositionInfo]:
         """获取指定标的的持仓信息"""
@@ -201,6 +218,24 @@ class BinanceFuturesTrader:
             return None
         except Exception as e:
             self.logger.warning(f"获取 {symbol} 持仓信息失败 (网络错误): {e}")
+            return None
+
+    def verify_order_status(self, symbol: str, order_id: int) -> Optional[Dict]:
+        """
+        验证订单状态
+
+        Args:
+            symbol: 交易对
+            order_id: 订单ID
+
+        Returns:
+            订单信息字典，如果查询失败返回None
+        """
+        try:
+            order = self.client.futures_get_order(symbol=symbol, orderId=order_id)
+            return order
+        except Exception as e:
+            self.logger.error(f"查询订单 {order_id} 状态失败: {e}")
             return None
 
     def calculate_quantity(self, symbol: str, usdt_amount: float,
@@ -322,14 +357,72 @@ class BinanceFuturesTrader:
 
             self.logger.info(f"📊 计算数量: {quantity} 张合约 @ {current_price}")
 
-            # 5. 开仓（市价做多）
-            order = self.client.futures_create_order(
-                symbol=binance_symbol,
-                side='BUY',
-                positionSide='LONG',  # 单向持仓模式的做多
-                type='MARKET',
-                quantity=quantity
-            )
+            # 5. 开仓（市价做多）- 带重试和状态验证
+            max_order_retries = 2
+            order_retry_delay = 3  # 秒
+            order = None
+            order_id = None
+
+            for order_attempt in range(max_order_retries):
+                try:
+                    self.logger.info(f"🔄 尝试下单 ({order_attempt + 1}/{max_order_retries})...")
+                    order = self.client.futures_create_order(
+                        symbol=binance_symbol,
+                        side='BUY',
+                        positionSide='LONG',  # 单向持仓模式的做多
+                        type='MARKET',
+                        quantity=quantity
+                    )
+                    order_id = order.get('orderId')
+                    self.logger.info(f"✅ 订单已提交，ID: {order_id}")
+                    break  # 成功则跳出重试循环
+
+                except BinanceAPIException as e:
+                    # 超时错误且未达最大重试次数
+                    if (e.code == -1007 or "Timeout" in str(e)) and order_attempt < max_order_retries - 1:
+                        self.logger.warning(
+                            f"⏳ 下单超时，{order_retry_delay}秒后重试 "
+                            f"({order_attempt + 1}/{max_order_retries})"
+                        )
+                        time.sleep(order_retry_delay)
+                        continue
+                    else:
+                        # 非超时错误或已达最大重试次数
+                        self.logger.error(f"❌ 下单失败: {e}")
+
+                        # 超时情况下尝试检查是否有新持仓
+                        if e.code == -1007 or "Timeout" in str(e):
+                            self.logger.warning("⚠️  超时错误，检查是否有新持仓...")
+                            time.sleep(2)  # 等待2秒让订单可能完成
+                            position = self.get_position_info(binance_symbol)
+                            if position and position.quantity > 0:
+                                self.logger.warning(
+                                    f"⚠️  检测到新持仓 {position.quantity} 张合约，"
+                                    f"订单可能已执行但响应超时"
+                                )
+                                # 构造一个虚拟订单对象继续流程
+                                order = {
+                                    'orderId': 'UNKNOWN_TIMEOUT',
+                                    'status': 'FILLED',
+                                    'executedQty': str(position.quantity),
+                                    'origQty': str(quantity)
+                                }
+                                self.logger.info("✅ 使用检测到的持仓信息继续流程")
+                                break
+                        raise  # 重新抛出异常
+
+            # 检查是否成功下单
+            if not order:
+                self.logger.error("❌ 下单失败，未获取到订单信息")
+                return False
+
+            # 6. 验证订单状态（如果有订单ID）
+            if order_id and order_id != 'UNKNOWN_TIMEOUT':
+                time.sleep(1)  # 等待1秒确保订单处理完成
+                verified_order = self.verify_order_status(binance_symbol, order_id)
+                if verified_order:
+                    order = verified_order  # 使用验证后的订单信息
+                    self.logger.info(f"✅ 订单状态已验证: {verified_order.get('status')}")
 
             executed_quantity = float(order.get('executedQty') or order.get('origQty') or 0)
 
@@ -339,14 +432,14 @@ class BinanceFuturesTrader:
             )
             self.logger.info(f"订单 ID: {order.get('orderId')}, 状态: {order.get('status')}")
 
-            # 6. 更新风险管理器持仓（使用实际成交数量）
+            # 7. 更新风险管理器持仓（使用实际成交数量）
             self.risk_manager.add_position(
                 symbol=recommendation.symbol,
                 quantity=executed_quantity or quantity,
                 entry_price=current_price
             )
 
-            # 7. 设置止损单
+            # 8. 设置止损单
             stop_loss_price = recommendation.stop_loss
             self.logger.info(f"🛡️  设置止损于 {stop_loss_price}")
 
@@ -363,13 +456,13 @@ class BinanceFuturesTrader:
             except BinanceAPIException as e:
                 self.logger.error(f"设置止损失败: {e}")
 
-            # 8. 记录交易
+            # 9. 记录交易
             self.risk_manager.record_trade(recommendation.symbol)
 
-            # 9. 更新余额
+            # 10. 更新余额
             self.update_risk_manager_balance()
 
-            # 10. 初始化止盈级别跟踪
+            # 11. 初始化止盈级别跟踪
             self.executed_tp_levels[recommendation.symbol] = set()
 
             return True
