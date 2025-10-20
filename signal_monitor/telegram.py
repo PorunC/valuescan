@@ -1082,7 +1082,7 @@ def format_confluence_message(symbol, price, alpha_count, fomo_count):
 
     emoji = "🚨"
     title = f"<b>【Alpha + FOMO】${symbol}</b>"
-    tag = "#Alpha融合FOMO"
+    tag = "#Alpha + FOMO"
 
     message_parts = [
         f"{emoji} {title}",
