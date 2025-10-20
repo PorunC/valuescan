@@ -1081,13 +1081,13 @@ def format_confluence_message(symbol, price, alpha_count, fomo_count):
     time_str = now.strftime('%H:%M:%S') + ' (UTC+8)'
 
     emoji = "🚨"
-    title = f"<b>【融合信号】${symbol}</b>"
+    title = f"<b>【Alpha + FOMO】${symbol}</b>"
     tag = "#Alpha融合FOMO"
 
     message_parts = [
         f"{emoji} {title}",
         f"━━━━━━━━━",
-        f"🔥 <b>检测到 Alpha + FOMO 融合信号！</b>",
+        f"🔥 <b>检测到 Alpha + FOMO 信号！</b>",
         f"⚡ 在2小时内同时出现 Alpha 和 FOMO 信号",
         f"",
         f"💵 当前价格: <b>${price}</b>",
