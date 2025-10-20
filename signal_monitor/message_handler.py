@@ -8,8 +8,9 @@ import time
 from datetime import datetime, timezone, timedelta
 from logger import logger
 from message_types import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
-from telegram import send_telegram_message, format_message_for_telegram
+from telegram import send_telegram_message, format_message_for_telegram, send_confluence_alert
 from database import is_message_processed, mark_message_processed
+from signal_tracker import get_signal_tracker
 
 # 北京时区 (UTC+8)
 BEIJING_TZ = timezone(timedelta(hours=8))
@@ -122,37 +123,39 @@ def print_message_details(item, idx=None):
 def process_message_item(item, idx=None, send_to_telegram=False, signal_callback=None):
     """
     处理单条消息：打印详情并可选发送到 Telegram
-    
+
     Args:
         item: 消息数据字典
         idx: 消息序号（可选）
         send_to_telegram: 是否发送到 Telegram
-    
+
     Returns:
         bool: 是否为新消息（未处理过的）
     """
     msg_id = item.get('id')
-    
+
     # 检查数据库中是否已处理过
     if msg_id and is_message_processed(msg_id):
         logger.info(f"  ⏭️ 消息 ID {msg_id} 已处理过，跳过")
         return False
-    
+
     # 打印消息详情
     print_message_details(item, idx)
-    
+
     # 提取消息信息用于数据库记录
     msg_type = item.get('type')
     title = item.get('title')
     created_time = item.get('createTime')
     symbol = None
     parsed_content = None
-    
-    # 尝试从 content 中提取币种符号
+    price = None
+
+    # 尝试从 content 中提取币种符号和价格
     if 'content' in item and item['content']:
         try:
             parsed_content = json.loads(item['content'])
             symbol = parsed_content.get('symbol')
+            price = parsed_content.get('price')
         except Exception:
             pass
 
@@ -163,6 +166,41 @@ def process_message_item(item, idx=None, send_to_telegram=False, signal_callback
             signal_callback(item, parsed_content)
         except Exception as callback_error:
             logger.exception(f"信号回调执行失败: {callback_error}")
+
+    def _check_and_send_confluence_signal():
+        """检查并发送融合信号"""
+        # 只处理 Alpha (110) 和 FOMO (113) 信号
+        if msg_type not in [110, 113]:
+            return
+
+        # 必须有币种符号和价格
+        if not symbol or not price or not created_time:
+            return
+
+        # 获取信号追踪器
+        tracker = get_signal_tracker()
+
+        # 确定信号类型
+        signal_type = 'alpha' if msg_type == 110 else 'fomo'
+
+        # 添加信号到追踪器，检查是否形成融合信号
+        is_confluence = tracker.add_signal(
+            symbol=symbol,
+            signal_type=signal_type,
+            price=price,
+            message_id=msg_id,
+            timestamp_ms=created_time
+        )
+
+        # 如果检测到融合信号，发送提醒
+        if is_confluence and send_to_telegram:
+            summary = tracker.get_signal_summary(symbol)
+            send_confluence_alert(
+                symbol=symbol,
+                price=summary['latest_price'],
+                alpha_count=summary['alpha_count'],
+                fomo_count=summary['fomo_count']
+            )
     
     # 发送到 Telegram（如果启用）
     if send_to_telegram:
@@ -174,11 +212,15 @@ def process_message_item(item, idx=None, send_to_telegram=False, signal_callback
                 if mark_message_processed(msg_id, msg_type, symbol, title, created_time):
                     logger.info(f"✅ 消息 ID {msg_id} 已记录到数据库")
                     _invoke_callback()
+                    # 检查并发送融合信号
+                    _check_and_send_confluence_signal()
                     return True  # 发送并记录成功
                 else:
                     logger.warning(f"⚠️ 消息 ID {msg_id} 记录到数据库失败")
                     return False  # 记录失败，下次重试
             _invoke_callback()
+            # 检查并发送融合信号
+            _check_and_send_confluence_signal()
             return True  # 没有 msg_id，但发送成功
         else:
             logger.warning(f"⚠️ Telegram 发送失败，消息 ID {msg_id} 未记录到数据库")

@@ -37,12 +37,13 @@ def get_beijing_time_str(timestamp_ms, format_str='%H:%M:%S'):
     return dt.strftime(format_str) + ' (UTC+8)'
 
 
-def send_telegram_message(message_text):
+def send_telegram_message(message_text, pin_message=False):
     """
     发送消息到 Telegram
 
     Args:
         message_text: 要发送的消息文本（支持 HTML 格式）
+        pin_message: 是否置顶该消息（默认 False）
 
     Returns:
         bool: 发送成功返回 True，否则返回 False
@@ -55,9 +56,9 @@ def send_telegram_message(message_text):
     if not TELEGRAM_BOT_TOKEN:
         logger.warning("  ⚠️ Telegram Bot Token 未配置，跳过发送")
         return False
-    
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    
+
     # 添加 Inline Keyboard 按钮
     inline_keyboard = {
         "inline_keyboard": [
@@ -69,7 +70,7 @@ def send_telegram_message(message_text):
             ]
         ]
     }
-    
+
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": message_text,
@@ -77,17 +78,58 @@ def send_telegram_message(message_text):
         "disable_web_page_preview": True,
         "reply_markup": inline_keyboard
     }
-    
+
     try:
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code == 200:
             logger.info("  ✅ Telegram 消息发送成功")
+
+            # 如果需要置顶消息
+            if pin_message:
+                result = response.json()
+                message_id = result.get('result', {}).get('message_id')
+                if message_id:
+                    _pin_telegram_message(message_id)
+
             return True
         else:
             logger.error(f"  ❌ Telegram 消息发送失败: {response.status_code} - {response.text}")
             return False
     except Exception as e:
         logger.error(f"  ❌ Telegram 消息发送异常: {e}")
+        return False
+
+
+def _pin_telegram_message(message_id):
+    """
+    置顶 Telegram 消息（内部函数）
+
+    Args:
+        message_id: 要置顶的消息ID
+
+    Returns:
+        bool: 置顶成功返回 True，否则返回 False
+    """
+    if not TELEGRAM_BOT_TOKEN:
+        return False
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/pinChatMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "message_id": message_id,
+        "disable_notification": False  # 发送通知提醒用户
+    }
+
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code == 200:
+            logger.info(f"  📌 消息已置顶 (ID: {message_id})")
+            return True
+        else:
+            logger.warning(f"  ⚠️ 置顶失败: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logger.warning(f"  ⚠️ 置顶异常: {e}")
         return False
 
 
@@ -1009,10 +1051,78 @@ def _format_general_message(item, content, msg_type, msg_type_name):
         if 'titleSimplified' in content:
             message_parts.append(f"")
             message_parts.append(f"💬 {content.get('titleSimplified', 'N/A')}")
-        
+
         message_parts.extend([
             f"━━━━━━━━━",
             f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
-        
+
         return "\n".join(message_parts)
+
+
+def format_confluence_message(symbol, price, alpha_count, fomo_count):
+    """
+    格式化融合信号消息（Alpha + FOMO）
+
+    Args:
+        symbol: 币种符号
+        price: 当前价格
+        alpha_count: Alpha 信号数量
+        fomo_count: FOMO 信号数量
+
+    Returns:
+        str: 格式化后的 HTML 消息文本
+    """
+    from datetime import datetime, timezone, timedelta
+
+    # 北京时区
+    BEIJING_TZ = timezone(timedelta(hours=8))
+    now = datetime.now(tz=BEIJING_TZ)
+    time_str = now.strftime('%H:%M:%S') + ' (UTC+8)'
+
+    emoji = "🚨"
+    title = f"<b>【融合信号】${symbol}</b>"
+    tag = "#Alpha融合FOMO"
+
+    message_parts = [
+        f"{emoji} {title}",
+        f"━━━━━━━━━",
+        f"🔥 <b>检测到 Alpha + FOMO 融合信号！</b>",
+        f"⚡ 在2小时内同时出现 Alpha 和 FOMO 信号",
+        f"",
+        f"💵 当前价格: <b>${price}</b>",
+        f"⭐ Alpha 信号: <b>{alpha_count}</b> 条",
+        f"🚀 FOMO 信号: <b>{fomo_count}</b> 条",
+        f"",
+        f"💡 操作建议:",
+        f"   • 🎯 <b>高概率入场机会</b>",
+        f"   • 📊 Alpha（价值机会）+ FOMO（市场情绪）",
+        f"   • ✅ 可考虑适当参与",
+        f"   • ⚠️ 注意控制仓位和风险",
+        f"   • 🎯 及时设置止盈止损位",
+        f"",
+        f"{tag}",
+        f"━━━━━━━━━",
+        f"🕐 {time_str}"
+    ]
+
+    return "\n".join(message_parts)
+
+
+def send_confluence_alert(symbol, price, alpha_count, fomo_count):
+    """
+    发送融合信号提醒（置顶消息）
+
+    Args:
+        symbol: 币种符号
+        price: 当前价格
+        alpha_count: Alpha 信号数量
+        fomo_count: FOMO 信号数量
+
+    Returns:
+        bool: 发送成功返回 True，否则返回 False
+    """
+    logger.info(f"🚨 发送融合信号提醒: ${symbol}")
+    message = format_confluence_message(symbol, price, alpha_count, fomo_count)
+    # 发送并置顶
+    return send_telegram_message(message, pin_message=True)
