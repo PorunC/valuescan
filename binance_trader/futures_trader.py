@@ -75,10 +75,20 @@ class BinanceFuturesTrader:
         self.testnet = testnet
 
         # 初始化 Binance 合约客户端
+        # 注意: python-binance 的 testnet 参数只影响现货 API
+        # 合约 API 需要手动设置 URL
         self.client = Client(api_key, api_secret, testnet=testnet)
+
         if testnet:
-            # python-binance 默认只切换现货测试网，需要手动指定合约测试网入口
+            # 设置合约测试网 URL (必须在任何 API 调用之前设置)
+            # 注意: 币安测试网已迁移到 demo.binance.com
+            # 但 API 端点仍然使用 testnet.binancefuture.com
             self.client.FUTURES_URL = 'https://testnet.binancefuture.com/fapi'
+
+        # 启用时间戳自动同步，解决时间差问题
+        # 这会在首次 API 调用时自动获取服务器时间并调整
+        self.client.timestamp_offset = 0
+
         self.logger = logging.getLogger(__name__)
 
         if testnet:
@@ -92,10 +102,25 @@ class BinanceFuturesTrader:
         # 已执行的分批止盈级别（避免重复执行）
         self.executed_tp_levels: Dict[str, set] = {}
 
-        # 测试连接
+        # 测试连接并同步时间
         try:
-            self.client.ping()
+            # 1. 测试合约 API ping (使用合约专用方法)
+            self.client.futures_ping()
             self.logger.info("✅ 币安合约 API 连接成功")
+
+            # 2. 获取合约服务器时间，计算时间差
+            server_time_response = self.client.futures_time()
+            server_time = server_time_response['serverTime']
+            local_time = int(time.time() * 1000)
+            time_offset = server_time - local_time
+
+            self.logger.info(f"⏰ 服务器时间偏移: {time_offset} ms")
+
+            # 如果时间差超过 500ms，设置偏移量
+            if abs(time_offset) > 500:
+                self.client.timestamp_offset = time_offset
+                self.logger.warning(f"⚠️  检测到时间差 {time_offset} ms，已自动调整")
+
         except Exception as e:
             self.logger.error(f"❌ 币安合约 API 连接失败: {e}")
             raise
