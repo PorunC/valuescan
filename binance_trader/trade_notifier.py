@@ -121,7 +121,8 @@ class TradeNotifier:
 
     def notify_open_position(self, symbol: str, side: str, quantity: float,
                             price: float, leverage: int, stop_loss: float,
-                            take_profit: float, reason: str) -> bool:
+                            take_profit: float, take_profit_2: float = None,
+                            reason: str = "") -> bool:
         """
         开仓通知
 
@@ -132,7 +133,8 @@ class TradeNotifier:
             price: 开仓价格
             leverage: 杠杆倍数
             stop_loss: 止损价格
-            take_profit: 止盈价格
+            take_profit: 第一止盈价格
+            take_profit_2: 第二止盈价格 (可选)
             reason: 开仓原因
 
         Returns:
@@ -140,6 +142,11 @@ class TradeNotifier:
         """
         side_emoji = "🟢" if side == "LONG" else "🔴"
         side_text = "做多" if side == "LONG" else "做空"
+
+        # 构建止盈信息
+        tp_info = f"🎯 <b>止盈1</b> (50%): ${take_profit:.6f}"
+        if take_profit_2:
+            tp_info += f"\n🎯 <b>止盈2</b> (50%): ${take_profit_2:.6f}"
 
         message = f"""
 {side_emoji} <b>开仓通知</b>
@@ -150,7 +157,7 @@ class TradeNotifier:
 💵 <b>开仓价</b>: ${price:.6f}
 ⚡ <b>杠杆</b>: {leverage}x
 🛡️ <b>止损</b>: ${stop_loss:.6f}
-🎯 <b>止盈</b>: ${take_profit:.6f}
+{tp_info}
 
 💡 <b>原因</b>: {reason}
 

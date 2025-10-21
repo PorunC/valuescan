@@ -595,16 +595,52 @@ class BinanceFuturesTrader:
             except BinanceAPIException as e:
                 self.logger.error(f"设置止损失败: {e}")
 
-            # 9. 记录交易
+            # 9. 设置第一止盈单 (平50%仓位)
+            tp1_price = self.format_price(binance_symbol, recommendation.take_profit_1, rounding="up")
+            tp1_quantity = self.format_quantity(binance_symbol, (executed_quantity or quantity) * 0.5)
+            self.logger.info(f"🎯 设置第一止盈于 {tp1_price} (平{tp1_quantity}张合约, 50%)")
+
+            try:
+                tp1_order = self.client.futures_create_order(
+                    symbol=binance_symbol,
+                    side='SELL',
+                    positionSide='LONG',
+                    type='TAKE_PROFIT_MARKET',
+                    stopPrice=tp1_price,
+                    quantity=tp1_quantity
+                )
+                self.logger.info(f"✅ 第一止盈已设于 {tp1_price}")
+            except BinanceAPIException as e:
+                self.logger.error(f"设置第一止盈失败: {e}")
+
+            # 10. 设置第二止盈单 (平剩余50%仓位)
+            tp2_price = self.format_price(binance_symbol, recommendation.take_profit_2, rounding="up")
+            tp2_quantity = self.format_quantity(binance_symbol, (executed_quantity or quantity) * 0.5)
+            self.logger.info(f"🎯 设置第二止盈于 {tp2_price} (平{tp2_quantity}张合约, 50%)")
+
+            try:
+                tp2_order = self.client.futures_create_order(
+                    symbol=binance_symbol,
+                    side='SELL',
+                    positionSide='LONG',
+                    type='TAKE_PROFIT_MARKET',
+                    stopPrice=tp2_price,
+                    quantity=tp2_quantity
+                )
+                self.logger.info(f"✅ 第二止盈已设于 {tp2_price}")
+            except BinanceAPIException as e:
+                self.logger.error(f"设置第二止盈失败: {e}")
+
+            # 11. 记录交易
             self.risk_manager.record_trade(recommendation.symbol)
 
-            # 10. 更新余额
+            # 12. 更新余额
             self.update_risk_manager_balance()
 
-            # 11. 初始化止盈级别跟踪
+            # 13. 初始化止盈级别跟踪
             self.executed_tp_levels[recommendation.symbol] = set()
 
-            # 12. 发送开仓通知
+            # 14. 发送开仓通知
             if self.notify_open:
                 self.notifier.notify_open_position(
                     symbol=binance_symbol,
@@ -614,6 +650,7 @@ class BinanceFuturesTrader:
                     leverage=leverage,
                     stop_loss=stop_loss_price,
                     take_profit=recommendation.take_profit_1,
+                    take_profit_2=recommendation.take_profit_2,
                     reason=recommendation.reason
                 )
 
