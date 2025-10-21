@@ -140,7 +140,15 @@ class BinanceFuturesTrader:
             self.notify_errors = getattr(config, 'NOTIFY_ERRORS', True)
         except Exception as e:
             self.logger.warning(f"⚠️  初始化通知器失败: {e}")
-            self.notifier = TradeNotifier(enabled=False)
+            # 不传入 enabled=False，让 TradeNotifier 自己决定是否启用（会尝试从 signal_monitor 加载）
+            self.notifier = TradeNotifier()
+            # 使用默认通知开关
+            self.notify_open = True
+            self.notify_close = True
+            self.notify_stop_loss = True
+            self.notify_take_profit = True
+            self.notify_partial = True
+            self.notify_errors = True
 
         # 测试连接并同步时间
         try:
