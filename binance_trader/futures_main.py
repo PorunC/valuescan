@@ -58,13 +58,17 @@ class FuturesAutoTradingSystem:
 
         # 3. 初始化合约交易器
         try:
+            # 获取代理配置（如果有）
+            proxy = getattr(config, 'SOCKS5_PROXY', None)
+
             self.trader = BinanceFuturesTrader(
                 api_key=config.BINANCE_API_KEY,
                 api_secret=config.BINANCE_API_SECRET,
                 risk_manager=self.risk_manager,
                 leverage=config.LEVERAGE,
                 margin_type=config.MARGIN_TYPE,
-                testnet=config.USE_TESTNET
+                testnet=config.USE_TESTNET,
+                proxy=proxy
             )
         except Exception as e:
             self.logger.error(f"初始化币安合约交易器失败: {e}")

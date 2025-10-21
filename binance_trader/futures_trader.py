@@ -57,7 +57,8 @@ class BinanceFuturesTrader:
                  risk_manager: RiskManager,
                  leverage: int = 10,
                  margin_type: str = "ISOLATED",
-                 testnet: bool = False):
+                 testnet: bool = False,
+                 proxy: Optional[str] = None):
         """
         初始化合约交易器
 
@@ -68,16 +69,37 @@ class BinanceFuturesTrader:
             leverage: 杠杆倍数（1-125）
             margin_type: 保证金模式 ISOLATED/CROSSED
             testnet: 是否使用测试网
+            proxy: SOCKS5代理 (格式: socks5://user:pass@host:port)
         """
         self.risk_manager = risk_manager
         self.leverage = leverage
         self.margin_type = margin_type
         self.testnet = testnet
+        self.logger = logging.getLogger(__name__)
+
+        # 配置代理
+        requests_params = None
+        if proxy:
+            # 隐藏敏感信息，只显示主机:端口
+            proxy_display = proxy.split('@')[-1] if '@' in proxy else proxy
+            self.logger.info(f"🌐 使用 SOCKS5 代理: {proxy_display}")
+            requests_params = {
+                'proxies': {
+                    'http': proxy,
+                    'https': proxy
+                },
+                'timeout': 30  # 代理连接超时30秒
+            }
 
         # 初始化 Binance 合约客户端
         # 注意: python-binance 的 testnet 参数只影响现货 API
         # 合约 API 需要手动设置 URL
-        self.client = Client(api_key, api_secret, testnet=testnet)
+        self.client = Client(
+            api_key,
+            api_secret,
+            testnet=testnet,
+            requests_params=requests_params
+        )
 
         if testnet:
             # 设置合约测试网 URL (必须在任何 API 调用之前设置)
@@ -88,8 +110,6 @@ class BinanceFuturesTrader:
         # 启用时间戳自动同步，解决时间差问题
         # 这会在首次 API 调用时自动获取服务器时间并调整
         self.client.timestamp_offset = 0
-
-        self.logger = logging.getLogger(__name__)
 
         if testnet:
             self.logger.warning("⚠️  运行于合约测试网模式")

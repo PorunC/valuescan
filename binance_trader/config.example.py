@@ -13,6 +13,12 @@ BINANCE_API_SECRET = "your_api_secret_here"
 # 合约测试网: https://testnet.binancefuture.com/
 USE_TESTNET = True
 
+# SOCKS5 代理配置（可选）
+# 格式: socks5://用户名:密码@主机:端口
+# 例如: socks5://user:pass@proxy.example.com:1080
+# 留空或 None 表示不使用代理
+SOCKS5_PROXY = None  # 示例: "socks5://user:pass@proxy.example.com:1080"
+
 # ============ 合约交易配置 ============
 # 交易对后缀（合约通常是 USDT）
 SYMBOL_SUFFIX = "USDT"
