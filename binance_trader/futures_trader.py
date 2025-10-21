@@ -139,7 +139,7 @@ class BinanceFuturesTrader:
             self.notify_partial = getattr(config, 'NOTIFY_PARTIAL_CLOSE', True)
             self.notify_errors = getattr(config, 'NOTIFY_ERRORS', True)
         except Exception as e:
-            self.logger.warning(f"⚠️  初始化通知器失败: {e}")
+            self.logger.debug(f"未找到本地 config 模块，将尝试从 signal_monitor 加载: {e}")
             # 不传入 enabled=False，让 TradeNotifier 自己决定是否启用（会尝试从 signal_monitor 加载）
             self.notifier = TradeNotifier()
             # 使用默认通知开关
