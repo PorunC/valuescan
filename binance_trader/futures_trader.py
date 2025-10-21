@@ -5,6 +5,7 @@
 
 import time
 import logging
+from decimal import Decimal, ROUND_DOWN, ROUND_UP
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 from binance.client import Client
@@ -122,6 +123,9 @@ class BinanceFuturesTrader:
 
         # 已执行的分批止盈级别（避免重复执行）
         self.executed_tp_levels: Dict[str, set] = {}
+
+        # 缓存交易对规则，避免重复请求交易所信息
+        self._symbol_info_cache: Dict[str, Dict] = {}
 
         # 初始化 Telegram 通知器
         try:
@@ -339,20 +343,77 @@ class BinanceFuturesTrader:
     def format_quantity(self, symbol: str, quantity: float) -> float:
         """根据交易对规则格式化数量"""
         try:
-            exchange_info = self.client.futures_exchange_info()
-            symbol_info = next((s for s in exchange_info['symbols'] if s['symbol'] == symbol), None)
-
+            symbol_info = self._get_symbol_info(symbol)
             if symbol_info:
-                for filter_item in symbol_info['filters']:
-                    if filter_item['filterType'] == 'LOT_SIZE':
-                        step_size = float(filter_item['stepSize'])
-                        precision = len(str(step_size).rstrip('0').split('.')[-1])
-                        return round(quantity, precision)
-
+                lot_filter = next(
+                    (f for f in symbol_info.get('filters', []) if f.get('filterType') == 'LOT_SIZE'),
+                    None
+                )
+                if lot_filter:
+                    step_size = float(lot_filter.get('stepSize', 0)) or 0.0
+                    min_qty = float(lot_filter.get('minQty', 0)) or 0.0
+                    if step_size > 0:
+                        rounded_qty = self._round_to_step(quantity, step_size, rounding="down")
+                        if rounded_qty < min_qty and quantity >= min_qty:
+                            self.logger.warning(
+                                f"{symbol} 下单量 {quantity} 低于最小数量 {min_qty}，已上调至最小值"
+                            )
+                            rounded_qty = self._round_to_step(min_qty, step_size, rounding="up")
+                        return rounded_qty
             return round(quantity, 3)  # 默认3位小数
         except Exception as e:
             self.logger.error(f"格式化数量失败: {e}")
             return round(quantity, 3)
+
+    def format_price(self, symbol: str, price: float, rounding: str = "down") -> float:
+        """根据交易对规则格式化价格"""
+        try:
+            symbol_info = self._get_symbol_info(symbol)
+            if symbol_info:
+                price_filter = next(
+                    (f for f in symbol_info.get('filters', []) if f.get('filterType') == 'PRICE_FILTER'),
+                    None
+                )
+                if price_filter:
+                    tick_size = float(price_filter.get('tickSize', 0)) or 0.0
+                    if tick_size > 0:
+                        rounded_price = self._round_to_step(price, tick_size, rounding=rounding)
+                        return rounded_price
+            return round(price, 4)
+        except Exception as e:
+            self.logger.error(f"格式化价格失败: {e}")
+            return round(price, 4)
+
+    def _get_symbol_info(self, symbol: str) -> Optional[Dict]:
+        """获取并缓存交易对规则"""
+        if symbol in self._symbol_info_cache:
+            return self._symbol_info_cache[symbol]
+
+        try:
+            exchange_info = self.client.futures_exchange_info()
+            symbol_info = next((s for s in exchange_info['symbols'] if s['symbol'] == symbol), None)
+            if symbol_info:
+                self._symbol_info_cache[symbol] = symbol_info
+                return symbol_info
+        except Exception as e:
+            self.logger.error(f"获取 {symbol} 交易规则失败: {e}")
+        return None
+
+    @staticmethod
+    def _round_to_step(value: float, step: float, rounding: str = "down") -> float:
+        """按照交易对步长对数值取整"""
+        if step <= 0:
+            return value
+
+        decimal_value = Decimal(str(value))
+        decimal_step = Decimal(str(step))
+
+        rounding_mode = ROUND_DOWN if rounding == "down" else ROUND_UP
+        floored = (decimal_value / decimal_step).to_integral_value(rounding=rounding_mode) * decimal_step
+
+        # 使用 tickSize 的精度格式化结果，避免浮点数残留
+        quantized = floored.quantize(decimal_step)
+        return float(quantized)
 
     def open_long_position(self, recommendation: TradeRecommendation,
                           symbol_suffix: str = "USDT",
@@ -513,7 +574,7 @@ class BinanceFuturesTrader:
             )
 
             # 8. 设置止损单
-            stop_loss_price = recommendation.stop_loss
+            stop_loss_price = self.format_price(binance_symbol, recommendation.stop_loss, rounding="down")
             self.logger.info(f"🛡️  设置止损于 {stop_loss_price}")
 
             try:
