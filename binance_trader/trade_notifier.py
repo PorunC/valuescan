@@ -8,7 +8,7 @@ import os
 import logging
 import requests
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,12 @@ logger = logging.getLogger(__name__)
 class TradeNotifier:
     """交易通知器 - 发送 Telegram 通知"""
 
-    def __init__(self, bot_token: str = "", chat_id: str = "", enabled: bool = True):
+    def __init__(self,
+                 bot_token: str = "",
+                 chat_id: str = "",
+                 enabled: bool = True,
+                 proxy: Optional[str] = None,
+                 timeout: int = 10):
         """
         初始化交易通知器
 
@@ -24,10 +29,25 @@ class TradeNotifier:
             bot_token: Telegram Bot Token
             chat_id: Telegram Chat ID
             enabled: 是否启用通知
+            proxy: SOCKS/HTTP 代理 (例如 socks5://user:pass@host:port)
+            timeout: 请求超时（秒）
         """
         self.enabled = enabled
         self.bot_token = bot_token
         self.chat_id = chat_id
+        self.proxy = proxy
+        self.timeout = timeout
+        self.session = requests.Session()
+
+        if self.proxy:
+            proxy_display = self.proxy.split('@')[-1] if '@' in self.proxy else self.proxy
+            logger.info(f"🌐 Telegram 消息使用代理: {proxy_display}")
+            self.session.proxies.update({
+                'http': self.proxy,
+                'https': self.proxy
+            })
+            # 禁止继承系统代理，避免与显式代理冲突
+            self.session.trust_env = False
 
         # 如果未提供 token/chat_id，尝试从信号监控模块读取
         if not self.bot_token or not self.chat_id:
@@ -75,7 +95,7 @@ class TradeNotifier:
                 'disable_web_page_preview': True
             }
 
-            response = requests.post(url, json=payload, timeout=10)
+            response = self.session.post(url, json=payload, timeout=self.timeout)
 
             if response.status_code == 200:
                 logger.debug("✅ Telegram 消息发送成功")
@@ -84,11 +104,11 @@ class TradeNotifier:
                 if pin:
                     message_id = response.json()['result']['message_id']
                     pin_url = f"https://api.telegram.org/bot{self.bot_token}/pinChatMessage"
-                    requests.post(pin_url, json={
+                    self.session.post(pin_url, json={
                         'chat_id': self.chat_id,
                         'message_id': message_id,
                         'disable_notification': True
-                    }, timeout=10)
+                    }, timeout=self.timeout)
 
                 return True
             else:

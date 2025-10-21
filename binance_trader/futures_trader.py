@@ -133,7 +133,12 @@ class BinanceFuturesTrader:
             enabled = getattr(config, 'ENABLE_TRADE_NOTIFICATIONS', False)
             bot_token = getattr(config, 'TELEGRAM_BOT_TOKEN', '')
             chat_id = getattr(config, 'TELEGRAM_CHAT_ID', '')
-            self.notifier = TradeNotifier(bot_token=bot_token, chat_id=chat_id, enabled=enabled)
+            self.notifier = TradeNotifier(
+                bot_token=bot_token,
+                chat_id=chat_id,
+                enabled=enabled,
+                proxy=proxy
+            )
 
             # 保存通知开关
             self.notify_open = getattr(config, 'NOTIFY_OPEN_POSITION', True)
@@ -145,7 +150,7 @@ class BinanceFuturesTrader:
         except Exception as e:
             self.logger.debug(f"未找到本地 config 模块，将尝试从 signal_monitor 加载: {e}")
             # 不传入 enabled=False，让 TradeNotifier 自己决定是否启用（会尝试从 signal_monitor 加载）
-            self.notifier = TradeNotifier()
+            self.notifier = TradeNotifier(proxy=proxy)
             # 使用默认通知开关
             self.notify_open = True
             self.notify_close = True
