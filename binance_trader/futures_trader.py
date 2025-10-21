@@ -10,6 +10,7 @@ from datetime import datetime
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceOrderException
 from .risk_manager import RiskManager, TradeRecommendation
+from .trade_notifier import TradeNotifier
 
 
 class PositionInfo:
@@ -121,6 +122,25 @@ class BinanceFuturesTrader:
 
         # 已执行的分批止盈级别（避免重复执行）
         self.executed_tp_levels: Dict[str, set] = {}
+
+        # 初始化 Telegram 通知器
+        try:
+            import config
+            enabled = getattr(config, 'ENABLE_TRADE_NOTIFICATIONS', False)
+            bot_token = getattr(config, 'TELEGRAM_BOT_TOKEN', '')
+            chat_id = getattr(config, 'TELEGRAM_CHAT_ID', '')
+            self.notifier = TradeNotifier(bot_token=bot_token, chat_id=chat_id, enabled=enabled)
+
+            # 保存通知开关
+            self.notify_open = getattr(config, 'NOTIFY_OPEN_POSITION', True)
+            self.notify_close = getattr(config, 'NOTIFY_CLOSE_POSITION', True)
+            self.notify_stop_loss = getattr(config, 'NOTIFY_STOP_LOSS', True)
+            self.notify_take_profit = getattr(config, 'NOTIFY_TAKE_PROFIT', True)
+            self.notify_partial = getattr(config, 'NOTIFY_PARTIAL_CLOSE', True)
+            self.notify_errors = getattr(config, 'NOTIFY_ERRORS', True)
+        except Exception as e:
+            self.logger.warning(f"⚠️  初始化通知器失败: {e}")
+            self.notifier = TradeNotifier(enabled=False)
 
         # 测试连接并同步时间
         try:
@@ -510,6 +530,19 @@ class BinanceFuturesTrader:
             # 11. 初始化止盈级别跟踪
             self.executed_tp_levels[recommendation.symbol] = set()
 
+            # 12. 发送开仓通知
+            if self.notify_open:
+                self.notifier.notify_open_position(
+                    symbol=binance_symbol,
+                    side='LONG',
+                    quantity=executed_quantity or quantity,
+                    price=current_price,
+                    leverage=leverage,
+                    stop_loss=stop_loss_price,
+                    take_profit=recommendation.take_profit_1,
+                    reason=recommendation.reason
+                )
+
             return True
 
         except BinanceOrderException as e:
@@ -536,6 +569,12 @@ class BinanceFuturesTrader:
         try:
             self.logger.info(f"🔻 平仓: {symbol} - 原因: {reason}")
 
+            # 获取持仓信息（平仓前）
+            position = self.get_position_info(symbol)
+            entry_price = position.entry_price if position else 0
+            quantity = abs(position.quantity) if position else 0
+            mark_price = position.mark_price if position else 0
+
             # 市价平仓
             order = self.client.futures_create_order(
                 symbol=symbol,
@@ -545,8 +584,29 @@ class BinanceFuturesTrader:
                 closePosition=True  # 平掉整个仓位
             )
 
+            # 获取成交价格
+            exit_price = mark_price  # 使用标记价格作为近似值
+
             self.logger.info(f"✅ 仓位已平: {symbol}")
             self.logger.info(f"订单 ID: {order.get('orderId')}")
+
+            # 计算盈亏
+            if entry_price > 0 and quantity > 0:
+                pnl = (exit_price - entry_price) * quantity
+                pnl_percent = ((exit_price - entry_price) / entry_price) * 100
+
+                # 发送平仓通知
+                if self.notify_close:
+                    self.notifier.notify_close_position(
+                        symbol=symbol,
+                        side='LONG',
+                        quantity=quantity,
+                        entry_price=entry_price,
+                        exit_price=exit_price,
+                        pnl=pnl,
+                        pnl_percent=pnl_percent,
+                        reason=reason
+                    )
 
             # 取消该标的的所有未成交订单
             self.cancel_all_orders(symbol)
@@ -594,6 +654,11 @@ class BinanceFuturesTrader:
                 f"{close_quantity} 张合约 - 原因: {reason}"
             )
 
+            # 保存平仓前的信息
+            entry_price = position.entry_price
+            current_price = position.mark_price
+            total_quantity = abs(position.quantity)
+
             # 市价平仓
             order = self.client.futures_create_order(
                 symbol=symbol,
@@ -604,6 +669,24 @@ class BinanceFuturesTrader:
             )
 
             self.logger.info(f"✅ 部分平仓成功: {close_quantity} 张合约")
+
+            # 计算盈亏
+            pnl = (current_price - entry_price) * close_quantity
+            remaining_qty = total_quantity - close_quantity
+
+            # 发送部分平仓通知
+            if self.notify_partial:
+                self.notifier.notify_partial_close(
+                    symbol=symbol,
+                    side='LONG',
+                    closed_qty=close_quantity,
+                    remaining_qty=remaining_qty,
+                    close_percent=close_percent * 100,
+                    current_price=current_price,
+                    pnl=pnl,
+                    reason=reason
+                )
+
             return True
 
         except BinanceAPIException as e:

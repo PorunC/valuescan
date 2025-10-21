@@ -190,6 +190,26 @@ ENABLE_WEBSOCKET = True
 # WebSocket 重连间隔（秒）
 WEBSOCKET_RECONNECT_INTERVAL = 5
 
+# ============ Telegram 通知配置 ============
+# 是否启用交易通知
+ENABLE_TRADE_NOTIFICATIONS = True
+
+# Telegram Bot Token（从 @BotFather 获取）
+# 如果留空，将尝试从信号监控模块的配置中读取
+TELEGRAM_BOT_TOKEN = ""  # 留空则自动从 ../signal_monitor/config.py 读取
+
+# Telegram Chat ID（你的用户 ID 或频道 ID）
+# 如果留空，将尝试从信号监控模块的配置中读取
+TELEGRAM_CHAT_ID = ""  # 留空则自动从 ../signal_monitor/config.py 读取
+
+# 通知事件类型
+NOTIFY_OPEN_POSITION = True      # 开仓通知
+NOTIFY_CLOSE_POSITION = True     # 平仓通知
+NOTIFY_STOP_LOSS = True          # 止损触发通知
+NOTIFY_TAKE_PROFIT = True        # 止盈触发通知
+NOTIFY_PARTIAL_CLOSE = True      # 部分平仓通知
+NOTIFY_ERRORS = True             # 错误通知
+
 # ============ 回测配置（未来版本）============
 # 是否启用回测模式
 ENABLE_BACKTEST = False
