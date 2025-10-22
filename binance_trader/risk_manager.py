@@ -161,6 +161,52 @@ class RiskManager:
         if symbol in self.positions:
             self.positions[symbol].update_price(current_price)
 
+    def sync_positions(self, live_positions: Dict[str, Dict[str, float]]):
+        """
+        使用交易所返回的实时持仓同步风控持仓。
+
+        Args:
+            live_positions: {symbol: {quantity, entry_price, current_price, entry_time?}}
+        """
+        live_symbols = set()
+
+        # 更新或新增持仓
+        for symbol, data in live_positions.items():
+            quantity = float(data.get("quantity", 0) or 0)
+            if quantity == 0:
+                continue
+
+            live_symbols.add(symbol)
+
+            entry_price = float(data.get("entry_price", 0) or 0)
+            current_price = float(data.get("current_price", entry_price or 0) or 0)
+            entry_time = data.get("entry_time") or datetime.now()
+
+            if symbol in self.positions:
+                position = self.positions[symbol]
+                position.quantity = quantity
+                if entry_price > 0:
+                    position.entry_price = entry_price
+                if current_price > 0:
+                    position.update_price(current_price)
+                position.entry_time = position.entry_time or entry_time
+            else:
+                position = PositionInfo(
+                    symbol=symbol,
+                    quantity=quantity,
+                    entry_price=entry_price if entry_price > 0 else current_price,
+                    current_price=current_price if current_price > 0 else entry_price,
+                    entry_time=entry_time
+                )
+                if current_price > 0:
+                    position.update_price(current_price)
+                self.positions[symbol] = position
+
+        # 移除已经不存在的持仓
+        stale_symbols = set(self.positions.keys()) - live_symbols
+        for symbol in stale_symbols:
+            self.remove_position(symbol)
+
     def calculate_position_size(self, symbol: str, current_price: float) -> float:
         """
         计算建议仓位大小

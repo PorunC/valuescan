@@ -829,6 +829,7 @@ class BinanceFuturesTrader:
             positions = self.client.futures_position_information()
             previous_positions = self.positions
             updated_positions: Dict[str, PositionInfo] = {}
+            risk_positions: Dict[str, Dict[str, float]] = {}
 
             for pos_data in positions:
                 qty = float(pos_data.get('positionAmt', 0))
@@ -845,12 +846,27 @@ class BinanceFuturesTrader:
 
                     updated_positions[symbol] = position
 
-                    # 同步更新风险管理器的持仓价格
                     symbol_base = symbol.replace("USDT", "")
-                    self.risk_manager.update_position_price(symbol_base, position.mark_price)
+                    risk_entry_time = None
+                    update_time = pos_data.get("updateTime")
+                    if update_time:
+                        try:
+                            risk_entry_time = datetime.fromtimestamp(int(update_time) / 1000)
+                        except Exception:
+                            risk_entry_time = None
+
+                    risk_positions[symbol_base] = {
+                        "quantity": abs(position.quantity),
+                        "entry_price": position.entry_price,
+                        "current_price": position.mark_price,
+                        "entry_time": risk_entry_time,
+                    }
 
             # 用最新数据替换缓存
             self.positions = updated_positions
+
+            # 与风控持仓同步，移除已平仓标的
+            self.risk_manager.sync_positions(risk_positions)
 
         except BinanceAPIException as e:
             self.logger.error(f"更新持仓失败 (Binance API): {e}")
