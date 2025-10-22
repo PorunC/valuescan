@@ -40,9 +40,18 @@ class FuturesAutoTradingSystem:
         self.logger.info("="*80)
 
         # 1. 初始化信号聚合器
+        signal_state_file = getattr(config, "SIGNAL_STATE_FILE", "data/signal_state.json")
+        enable_signal_cache = getattr(config, "ENABLE_SIGNAL_STATE_CACHE", True)
+        max_processed_ids = getattr(config, "MAX_PROCESSED_SIGNAL_IDS", 5000)
+        if not signal_state_file:
+            enable_signal_cache = False
+
         self.signal_aggregator = SignalAggregator(
             time_window=config.SIGNAL_TIME_WINDOW,
-            min_score=config.MIN_SIGNAL_SCORE
+            min_score=config.MIN_SIGNAL_SCORE,
+            state_file=signal_state_file if enable_signal_cache else None,
+            enable_persistence=enable_signal_cache,
+            max_processed_ids=max_processed_ids
         )
 
         # 2. 初始化风险管理器

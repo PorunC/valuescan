@@ -46,6 +46,15 @@ SIGNAL_TIME_WINDOW = 300  # 5分钟
 # 低于此评分的聚合信号将被忽略
 MIN_SIGNAL_SCORE = 0.6
 
+# 是否持久化信号状态，防止程序重启后丢失未处理信号
+ENABLE_SIGNAL_STATE_CACHE = True
+
+# 信号状态存储文件（相对路径相对于项目根目录）
+SIGNAL_STATE_FILE = "data/signal_state.json"
+
+# 持久化的已处理信号ID数量上限（用于防重复）
+MAX_PROCESSED_SIGNAL_IDS = 5000
+
 # 是否启用 FOMO 加剧信号 (Type 112)
 # True: Type 112 作为风险信号，可用于止盈判断
 # False: 忽略 Type 112 信号

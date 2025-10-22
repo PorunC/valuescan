@@ -3,10 +3,11 @@
 实现多信号confluence策略，在时间窗口内匹配 FOMO 和 Alpha 信号
 """
 
-import time
+import json
+from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set
-from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Set
+from dataclasses import dataclass
 from collections import defaultdict
 import logging
 
@@ -63,7 +64,10 @@ class SignalAggregator:
 
     def __init__(self,
                  time_window: int = 300,  # 时间窗口（秒），默认5分钟
-                 min_score: float = 0.6):  # 最低信号评分
+                 min_score: float = 0.6,  # 最低信号评分
+                 state_file: Optional[str] = None,
+                 enable_persistence: bool = True,  # 是否开启持久化
+                 max_processed_ids: int = 5000):
         """
         初始化信号聚合器
 
@@ -88,13 +92,39 @@ class SignalAggregator:
 
         # 已处理的信号ID（防重复）
         self.processed_signal_ids: Set[str] = set()
+        try:
+            max_ids_value = int(max_processed_ids)
+        except (TypeError, ValueError):
+            max_ids_value = 5000
+        self.max_processed_ids = max(1000, max_ids_value)
+        self.processed_signal_order: List[str] = []
 
         self.logger = logging.getLogger(__name__)
+
+        # 状态持久化
+        self.state_file: Optional[Path] = None
+        self.persistence_enabled = False
+
+        if state_file and enable_persistence:
+            try:
+                state_path = Path(state_file).expanduser()
+                state_path.parent.mkdir(parents=True, exist_ok=True)
+                self.state_file = state_path
+                self.persistence_enabled = True
+            except Exception as exc:
+                self.logger.warning(f"无法创建信号状态目录，已禁用持久化: {exc}")
+                self.state_file = None
+                self.persistence_enabled = False
+
+        if self.persistence_enabled:
+            self._load_state()
 
         self.logger.info(
             f"信号聚合器已初始化: "
             f"时间窗口={time_window}秒, 最低评分={min_score}"
         )
+        if self.persistence_enabled and self.state_file:
+            self.logger.info(f"💾 信号持久化已启用，状态文件: {self.state_file}")
         self.logger.info("📊 信号类型: Type 113 (FOMO) + Type 110 (Alpha) = 买入")
         self.logger.info("⚠️  信号类型: Type 112 (FOMO加剧) = 风险信号 (应止盈)")
 
@@ -146,6 +176,8 @@ class SignalAggregator:
             self.logger.warning(f"⚠️  风险信号检测到: {signal.symbol} (Type 112 - FOMO加剧，建议止盈)")
 
         self.processed_signal_ids.add(message_id)
+        self.processed_signal_order.append(message_id)
+        self._trim_processed_history()
 
         # 清理过期信号
         self._cleanup_expired_signals()
@@ -159,6 +191,9 @@ class SignalAggregator:
                 f"(时间差={confluence.time_gap:.1f}秒, 评分={confluence.score:.2f})"
             )
             self.confluence_signals.append(confluence)
+
+        if self.persistence_enabled:
+            self._persist_state()
 
         return confluence
 
@@ -277,6 +312,144 @@ class SignalAggregator:
         )
 
         return total_score
+
+    def _trim_processed_history(self):
+        """限制已处理信号历史长度，避免状态文件过大"""
+        overflow = len(self.processed_signal_order) - self.max_processed_ids
+        while overflow > 0 and self.processed_signal_order:
+            oldest_id = self.processed_signal_order.pop(0)
+            self.processed_signal_ids.discard(oldest_id)
+            overflow -= 1
+
+    def _serialize_signal(self, signal: Signal) -> Dict[str, Any]:
+        """序列化信号为可持久化的字典"""
+        return {
+            "signal_id": signal.signal_id,
+            "symbol": signal.symbol,
+            "signal_type": signal.signal_type,
+            "timestamp": signal.timestamp.isoformat(),
+            "message_type": signal.message_type,
+            "data": self._make_json_safe(signal.data)
+        }
+
+    def _deserialize_signal(self, payload: Dict[str, Any]) -> Optional[Signal]:
+        """从字典恢复信号对象"""
+        try:
+            timestamp_raw = payload.get("timestamp")
+            if not timestamp_raw:
+                return None
+            timestamp = datetime.fromisoformat(timestamp_raw)
+            return Signal(
+                signal_id=str(payload.get("signal_id", "")),
+                symbol=str(payload.get("symbol", "")).upper(),
+                signal_type=str(payload.get("signal_type", "")),
+                timestamp=timestamp,
+                message_type=int(payload.get("message_type", 0)),
+                data=payload.get("data") or {}
+            )
+        except Exception as exc:
+            self.logger.debug(f"信号反序列化失败，已忽略: {exc}")
+            return None
+
+    def _make_json_safe(self, value: Any) -> Any:
+        """确保数据可被 JSON 序列化"""
+        if isinstance(value, dict):
+            return {str(k): self._make_json_safe(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self._make_json_safe(item) for item in value]
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        return str(value)
+
+    def _persist_state(self):
+        """将当前信号状态保存到磁盘"""
+        if not self.persistence_enabled or not self.state_file:
+            return
+
+        state = {
+            "version": 1,
+            "saved_at": datetime.now().isoformat(),
+            "time_window": self.time_window,
+            "min_score": self.min_score,
+            "fomo_signals": {
+                symbol: [self._serialize_signal(s) for s in signals]
+                for symbol, signals in self.fomo_signals.items()
+            },
+            "alpha_signals": {
+                symbol: [self._serialize_signal(s) for s in signals]
+                for symbol, signals in self.alpha_signals.items()
+            },
+            "risk_signals": {
+                symbol: [self._serialize_signal(s) for s in signals]
+                for symbol, signals in self.risk_signals.items()
+            },
+            "processed_signal_order": self.processed_signal_order[-self.max_processed_ids:]
+        }
+
+        tmp_path = self.state_file.with_name(self.state_file.name + ".tmp")
+
+        try:
+            with tmp_path.open("w", encoding="utf-8") as fh:
+                json.dump(state, fh, ensure_ascii=False, indent=2)
+            tmp_path.replace(self.state_file)
+        except Exception as exc:
+            self.logger.warning(f"保存信号状态失败: {exc}")
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except Exception:
+                    pass
+
+    def _load_state(self):
+        """从磁盘恢复信号状态"""
+        if not self.state_file or not self.state_file.exists():
+            return
+
+        try:
+            with self.state_file.open("r", encoding="utf-8") as fh:
+                state = json.load(fh)
+        except Exception as exc:
+            self.logger.warning(f"加载信号状态失败，忽略持久化: {exc}")
+            return
+
+        def load_bucket(bucket: str, target: Dict[str, List[Signal]]):
+            raw = state.get(bucket, {})
+            target.clear()
+            for symbol, items in raw.items():
+                restored = []
+                for item in items:
+                    signal = self._deserialize_signal(item)
+                    if signal:
+                        restored.append(signal)
+                if restored:
+                    target[symbol] = restored
+
+        load_bucket("fomo_signals", self.fomo_signals)
+        load_bucket("alpha_signals", self.alpha_signals)
+        load_bucket("risk_signals", self.risk_signals)
+
+        order = state.get("processed_signal_order")
+        if order:
+            self.processed_signal_order = [str(item) for item in order if item]
+            self.processed_signal_ids = set(self.processed_signal_order)
+        else:
+            ids = state.get("processed_signal_ids", [])
+            # 使用 dict fromkeys 保持顺序并去重
+            self.processed_signal_order = list(dict.fromkeys(str(item) for item in ids if item))
+            self.processed_signal_ids = set(self.processed_signal_order)
+
+        self._trim_processed_history()
+
+        # 清理超出时间窗口的历史数据
+        self._cleanup_expired_signals()
+
+        self.logger.info(
+            f"已从状态文件加载 {sum(len(v) for v in self.fomo_signals.values())} 条FOMO信号、"
+            f"{sum(len(v) for v in self.alpha_signals.values())} 条Alpha信号、"
+            f"{sum(len(v) for v in self.risk_signals.values())} 条风险信号"
+        )
 
     def _cleanup_expired_signals(self):
         """清理过期信号（超过时间窗口的信号）"""
