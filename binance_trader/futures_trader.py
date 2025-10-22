@@ -905,11 +905,5 @@ class BinanceFuturesTrader:
 
                 if distance < 30:  # 距离强平价格小于30%
                     risky_positions.append((symbol, distance))
-                    self.logger.warning(
-                        f"⚠️  强平风险: {symbol} "
-                        f"标记={position.mark_price:.2f}, "
-                        f"强平={position.liquidation_price:.2f}, "
-                        f"距离={distance:.1f}%"
-                    )
 
         return risky_positions

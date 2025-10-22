@@ -273,15 +273,6 @@ class FuturesAutoTradingSystem:
             # 更新持仓信息
             self.trader.monitor_positions()
 
-            # 检查强平风险
-            risky = self.trader.check_liquidation_risk()
-            if risky:
-                for symbol, distance in risky:
-                    self.logger.error(
-                        f"⚠️  高强平风险: {symbol} "
-                        f"距离强平仅 {distance:.1f}%!"
-                    )
-
             self.last_position_monitor = now
 
     def check_trailing_stops(self):
