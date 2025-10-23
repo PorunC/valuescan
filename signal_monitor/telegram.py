@@ -684,7 +684,7 @@ def _format_risk_alert(item, content, msg_type_name):
         emoji = "🟢"
         title = f"<b>${symbol} 趋势转变</b>"
         tag = "#追踪结束"
-        
+
         message_parts = [
             f"{emoji} {title}",
             f"━━━━━━━━━",
@@ -692,20 +692,20 @@ def _format_risk_alert(item, content, msg_type_name):
             f"🤖 AI实时追踪已结束",
             f"💵 现价: <b>${price}</b>",
         ]
-        
+
         if change_24h:
             change_emoji = "📈" if change_24h >= 0 else "📉"
             change_text = "涨幅" if change_24h >= 0 else "跌幅"
             message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
-        
+
         if risk_decline:
             message_parts.append(f"📉 追踪期跌幅: <code>-{risk_decline:.2f}%</code>")
         if rebound:
             message_parts.append(f"📈 反弹幅度: <code>+{rebound:.2f}%</code>")
-        
+
         if scoring:
             message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
-        
+
         message_parts.extend([
             f"",
             f"💡 提示:",
@@ -718,7 +718,151 @@ def _format_risk_alert(item, content, msg_type_name):
             f"━━━━━━━━━",
             f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
         ])
-    
+
+    elif predict_type == 1:
+        # 主力出货
+        emoji = "🔵"
+        title = f"<b>${symbol} 主力出货</b>"
+        tag = "#主力出货"
+
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"📊 检测到主力出货信号",
+            f"💵 现价: <b>${price}</b>",
+        ]
+
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • ⚠️ 主力可能在出货",
+            f"   • 📉 注意市场风险",
+            f"   • 🛑 谨慎追高",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
+        ])
+
+    elif predict_type in [6, 18]:
+        # AI 追踪结束（退出机会）
+        emoji = "🔔"
+        title = f"<b>${symbol} AI追踪结束</b>"
+        tag = "#追踪结束"
+
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"🤖 AI实时追踪已结束",
+            f"⚠️ 注意市场风险",
+            f"💵 现价: <b>${price}</b>",
+        ]
+
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+
+        # 显示追踪期间的最大涨幅（如果有）
+        if gains and gains > 0:
+            message_parts.append(f"📈 追踪期最大涨幅: <code>+{gains:.2f}%</code>")
+
+        message_parts.extend([
+            f"",
+            f"💡 提示:",
+            f"   • 🔔 AI监控已结束",
+            f"   • 📊 建议关注后续走势",
+            f"   • ⚠️ 如有持仓需自行评估风险",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
+        ])
+
+    elif predict_type in [22, 23]:
+        # 追踪下跌后反弹
+        emoji = "🟡"
+        title = f"<b>${symbol} 下跌后反弹</b>"
+        tag = "#下跌反弹"
+
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+        ]
+
+        if risk_decline:
+            message_parts.append(f"📉 下跌幅度: <code>-{risk_decline:.2f}%</code>")
+        if rebound:
+            message_parts.append(f"📈 反弹幅度: <code>+{rebound:.2f}%</code>")
+
+        message_parts.append(f"💵 现价: <b>${price}</b>")
+
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • 📊 触底后出现反弹",
+            f"   • ⚠️ 观察反弹是否持续",
+            f"   • 🎯 可考虑移动止盈保护利润",
+            f"   • 📉 注意二次探底风险",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
+        ])
+
+    elif predict_type in [25, 27]:
+        # 资金异动（24H内/24H外）
+        emoji = "💰"
+        time_frame = "24H内" if predict_type == 25 else "24H外"
+        title = f"<b>${symbol} {time_frame}资金异动</b>"
+        tag = f"#{time_frame}资金异动"
+
+        message_parts = [
+            f"{emoji} {title}",
+            f"━━━━━━━━━",
+            f"💼 检测到{time_frame}出现资金异常流动",
+            f"💵 现价: <b>${price}</b>",
+        ]
+
+        if change_24h:
+            change_emoji = "📈" if change_24h >= 0 else "📉"
+            change_text = "涨幅" if change_24h >= 0 else "跌幅"
+            message_parts.append(f"{change_emoji} 24H{change_text}: <code>{change_24h:+.2f}%</code>")
+
+        if scoring:
+            message_parts.append(f"🎯 AI评分: <b>{int(scoring)}</b>")
+
+        message_parts.extend([
+            f"",
+            f"💡 操作建议:",
+            f"   • 💰 资金活跃度提升",
+            f"   • 📊 关注市场行情变化",
+            f"   • ⚠️ 注意风险管控",
+            f"",
+            f"{tag}",
+            f"━━━━━━━━━",
+            f"🕐 {get_beijing_time_str(item.get('createTime', 0))}"
+        ])
+
     else:
         # AI追踪结束 - 通用格式
         emoji = "🔔"
