@@ -14,6 +14,16 @@ try:
 except ImportError:
     from logger import logger
 
+# 导入代理配置
+try:
+    from .config import SOCKS5_PROXY, HTTP_PROXY
+except ImportError:
+    try:
+        from config import SOCKS5_PROXY, HTTP_PROXY
+    except ImportError:
+        SOCKS5_PROXY = ""
+        HTTP_PROXY = ""
+
 try:
     import requests
 except ImportError:
@@ -35,6 +45,33 @@ CACHE_REFRESH_INTERVAL = 60 * 60  # 1小时
 CACHE_FILE = Path(__file__).parent / "binance_alpha_intersection_cache.json"
 
 
+def _get_proxies():
+    """
+    获取代理配置
+
+    Returns:
+        dict: requests库使用的代理配置，如果没有配置则返回None
+    """
+    # 优先使用 SOCKS5 代理
+    if SOCKS5_PROXY and isinstance(SOCKS5_PROXY, str) and SOCKS5_PROXY.strip():
+        proxy_url = SOCKS5_PROXY.strip()
+        return {
+            'http': proxy_url,
+            'https': proxy_url
+        }
+
+    # 其次使用 HTTP 代理
+    if HTTP_PROXY and isinstance(HTTP_PROXY, str) and HTTP_PROXY.strip():
+        proxy_url = HTTP_PROXY.strip()
+        return {
+            'http': proxy_url,
+            'https': proxy_url
+        }
+
+    # 没有配置代理
+    return None
+
+
 class BinanceAlphaCache:
     """
     币安 Alpha 与合约代币交集缓存
@@ -54,6 +91,25 @@ class BinanceAlphaCache:
         self._update_lock = threading.Lock()
         self._refresh_thread = None
         self._stop_flag = threading.Event()
+
+        # 显示代理配置（如果有）
+        proxies = _get_proxies()
+        if proxies:
+            proxy_url = proxies.get('https', proxies.get('http', ''))
+            # 隐藏密码部分
+            if '@' in proxy_url:
+                parts = proxy_url.split('@')
+                if len(parts) == 2:
+                    protocol_user = parts[0].split('//')
+                    if len(protocol_user) == 2:
+                        protocol = protocol_user[0]
+                        user_part = protocol_user[1].split(':')[0] if ':' in protocol_user[1] else protocol_user[1]
+                        masked_url = f"{protocol}//{user_part}:***@{parts[1]}"
+                        logger.info(f"🌐 使用代理: {masked_url}")
+            else:
+                logger.info(f"🌐 使用代理: {proxy_url}")
+        else:
+            logger.debug("不使用代理（直连）")
 
         # 启动时尝试从缓存文件加载
         self._load_from_cache_file()
@@ -117,9 +173,11 @@ class BinanceAlphaCache:
             return set()
 
         try:
+            proxies = _get_proxies()
             response = requests.get(
                 ALPHA_API_URL,
                 headers={"User-Agent": "Mozilla/5.0"},
+                proxies=proxies,
                 timeout=15
             )
             response.raise_for_status()
@@ -149,9 +207,11 @@ class BinanceAlphaCache:
             return set()
 
         try:
+            proxies = _get_proxies()
             response = requests.get(
                 FUTURES_API_URL,
                 headers={"User-Agent": "Mozilla/5.0"},
+                proxies=proxies,
                 timeout=20
             )
             response.raise_for_status()

@@ -49,6 +49,19 @@ except ImportError:
     IPC_RETRY_DELAY = 2.0
     IPC_MAX_RETRIES = 3
 
+# ==================== 网络代理配置 ====================
+# SOCKS5 代理（用于访问币安API获取Alpha交集）
+# 格式: "socks5://username:password@host:port"
+# 留空则不使用代理
+SOCKS5_PROXY = ""
+# 示例: SOCKS5_PROXY = "socks5://user:pass@proxy.example.com:1080"
+
+# HTTP/HTTPS 代理（备选方案）
+# 格式: {"http": "http://proxy:port", "https": "http://proxy:port"}
+# 留空则不使用代理
+HTTP_PROXY = ""
+# 示例: HTTP_PROXY = "http://proxy.example.com:8080"
+
 # ==================== 日志配置 ====================
 # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 # DEBUG: 详细的调试信息
