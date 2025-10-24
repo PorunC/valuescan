@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 import requests
 from logger import logger
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from binance_alpha_cache import is_binance_alpha_symbol
 
 # 尝试导入通知开关，如果不存在则使用默认值
 try:
@@ -133,34 +134,72 @@ def _pin_telegram_message(message_id):
         return False
 
 
+def _get_binance_alpha_badge(symbol):
+    """
+    获取币安Alpha标识
+
+    Args:
+        symbol: 币种符号
+
+    Returns:
+        str: 如果在币安Alpha交集中返回标识，否则返回空字符串
+    """
+    if not symbol:
+        return ""
+
+    try:
+        if is_binance_alpha_symbol(symbol):
+            return " 🔥 <b>币安Alpha</b>"
+    except Exception as e:
+        logger.debug(f"检查币安Alpha失败: {e}")
+
+    return ""
+
+
 def format_message_for_telegram(item):
     """
     格式化消息为 Telegram HTML 格式
-    
+
     Args:
         item: 消息数据字典
-    
+
     Returns:
         str: 格式化后的 HTML 消息文本
     """
     from message_types import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
-    
+
     msg_type = item.get('type', 'N/A')
     msg_type_name = MESSAGE_TYPE_MAP.get(msg_type, 'N/A') if isinstance(msg_type, int) else 'N/A'
-    
+
     # 解析 content 字段
     content = {}
+    symbol = None
     if 'content' in item and item['content']:
         try:
             content = json.loads(item['content'])
+            symbol = content.get('symbol')
         except json.JSONDecodeError:
             pass
-    
+
     # 根据消息类型使用不同的格式
     if msg_type == 100:  # 下跌风险 - 特殊格式
-        return _format_risk_alert(item, content, msg_type_name)
+        formatted_message = _format_risk_alert(item, content, msg_type_name)
     else:  # 其他类型 - 通用格式
-        return _format_general_message(item, content, msg_type, msg_type_name)
+        formatted_message = _format_general_message(item, content, msg_type, msg_type_name)
+
+    # 统一添加币安Alpha标识（如果币种在交集中）
+    if symbol and _get_binance_alpha_badge(symbol):
+        # 在第一行标题后添加币安Alpha标识
+        lines = formatted_message.split('\n')
+        if lines:
+            # 找到第一个包含 ${symbol} 的行（标题行）
+            for i, line in enumerate(lines):
+                if f'${symbol}' in line and '<b>' in line:
+                    lines[i] = line.rstrip('</b>') + ' 🔥 币安Alpha</b>' if line.endswith('</b>') else line + ' 🔥 <b>币安Alpha</b>'
+                    break
+            formatted_message = '\n'.join(lines)
+
+    return formatted_message
 
 
 def _format_risk_alert(item, content, msg_type_name):
@@ -182,7 +221,7 @@ def _format_risk_alert(item, content, msg_type_name):
     - predictType 31: 追踪后跌幅5-15%（保护本金）
     """
     from message_types import TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
-    
+
     symbol = content.get('symbol', 'N/A')
     price = content.get('price', 'N/A')
     change_24h = content.get('percentChange24h', 0)
@@ -191,7 +230,7 @@ def _format_risk_alert(item, content, msg_type_name):
     gains = content.get('gains', 0)
     rebound = content.get('rebound', 0)
     scoring = content.get('scoring', 0)
-    
+
     # 根据 predictType 判断场景
     if predict_type == 2:
         # 主力出逃（风险增加）
@@ -1224,8 +1263,11 @@ def format_confluence_message(symbol, price, alpha_count, fomo_count):
     now = datetime.now(tz=BEIJING_TZ)
     time_str = now.strftime('%H:%M:%S') + ' (UTC+8)'
 
+    # 获取币安Alpha标识
+    binance_alpha_badge = _get_binance_alpha_badge(symbol)
+
     emoji = "🚨"
-    title = f"<b>【Alpha + FOMO】${symbol}</b>"
+    title = f"<b>【Alpha + FOMO】${symbol}</b> {binance_alpha_badge}"
     tag = "#Alpha + FOMO"
 
     message_parts = [

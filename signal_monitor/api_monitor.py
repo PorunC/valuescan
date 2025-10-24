@@ -19,6 +19,7 @@ try:
         ENABLE_IPC_FORWARDING,
     )
     from .message_handler import process_response_data
+    from .binance_alpha_cache import get_binance_alpha_cache
     try:
         from .ipc_client import forward_signal as default_signal_callback
     except ImportError:
@@ -32,6 +33,7 @@ except ImportError:  # 兼容脚本执行
         ENABLE_IPC_FORWARDING,
     )
     from message_handler import process_response_data
+    from binance_alpha_cache import get_binance_alpha_cache
     try:
         from ipc_client import forward_signal as default_signal_callback
     except ImportError:
@@ -135,13 +137,23 @@ def capture_api_request(headless=False, signal_callback=None):
     """
     连接到调试模式的浏览器并监听 API 请求
     使用当前目录下的 Chrome 用户数据
-    
+
     Args:
         headless: 是否使用无头模式（不显示浏览器窗口）
         signal_callback: 新消息回调（可选）
     """
     if signal_callback is None and ENABLE_IPC_FORWARDING and default_signal_callback:
         signal_callback = default_signal_callback
+
+    # 启动币安Alpha缓存自动刷新
+    logger.info("🚀 初始化币安Alpha交集缓存...")
+    try:
+        alpha_cache = get_binance_alpha_cache()
+        alpha_cache.start_auto_refresh()
+        cache_info = alpha_cache.get_cache_info()
+        logger.info(f"✅ 币安Alpha缓存已启动: {cache_info['count']} 个交集代币")
+    except Exception as e:
+        logger.warning(f"⚠️ 币安Alpha缓存启动失败（功能将不可用）: {e}")
 
     # 无头模式下先关闭所有 Chrome 进程，避免用户目录冲突
     if headless:
