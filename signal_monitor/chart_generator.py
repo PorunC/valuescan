@@ -9,6 +9,11 @@ from io import BytesIO
 from logger import logger
 
 # 默认配置（将在 config.py 中设置）
+DEFAULT_API_KEY = "123456789abcdef0123456789abcdef"
+DEFAULT_LAYOUT_ID = "oeTZqtUR"
+DEFAULT_CHART_WIDTH = 1200
+DEFAULT_CHART_HEIGHT = 800
+DEFAULT_TIMEOUT = 90
 
 
 def generate_tradingview_chart(
