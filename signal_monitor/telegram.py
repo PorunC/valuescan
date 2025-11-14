@@ -101,6 +101,63 @@ def send_telegram_message(message_text, pin_message=False):
         return False
 
 
+def send_telegram_photo(photo_data, caption=None, pin_message=False):
+    """
+    发送图片到 Telegram
+
+    Args:
+        photo_data: 图片数据（bytes）
+        caption: 图片说明文字（支持 HTML 格式，可选）
+        pin_message: 是否置顶该消息（默认 False）
+
+    Returns:
+        bool: 发送成功返回 True，否则返回 False
+    """
+    # 检查是否启用 Telegram 通知
+    if not ENABLE_TELEGRAM:
+        logger.info("  ⏭️  Telegram 通知已禁用，跳过发送")
+        return True
+
+    if not TELEGRAM_BOT_TOKEN:
+        logger.warning("  ⚠️ Telegram Bot Token 未配置，跳过发送")
+        return False
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+
+    # 构建多部分表单数据
+    files = {
+        'photo': ('chart.png', photo_data, 'image/png')
+    }
+
+    data = {
+        'chat_id': TELEGRAM_CHAT_ID,
+    }
+
+    if caption:
+        data['caption'] = caption
+        data['parse_mode'] = 'HTML'
+
+    try:
+        response = requests.post(url, data=data, files=files, timeout=30)
+        if response.status_code == 200:
+            logger.info("  ✅ Telegram 图片发送成功")
+
+            # 如果需要置顶消息
+            if pin_message:
+                result = response.json()
+                message_id = result.get('result', {}).get('message_id')
+                if message_id:
+                    _pin_telegram_message(message_id)
+
+            return True
+        else:
+            logger.error(f"  ❌ Telegram 图片发送失败: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"  ❌ Telegram 图片发送异常: {e}")
+        return False
+
+
 def _pin_telegram_message(message_id):
     """
     置顶 Telegram 消息（内部函数）
@@ -1297,7 +1354,7 @@ def format_confluence_message(symbol, price, alpha_count, fomo_count):
 
 def send_confluence_alert(symbol, price, alpha_count, fomo_count):
     """
-    发送融合信号提醒（置顶消息）
+    发送融合信号提醒（包含 TradingView 图表，置顶消息）
 
     Args:
         symbol: 币种符号
@@ -1309,6 +1366,32 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
         bool: 发送成功返回 True，否则返回 False
     """
     logger.info(f"🚨 发送融合信号提醒: ${symbol}")
+
+    # 检查是否启用图表生成
+    enable_chart = True
+    try:
+        from config import ENABLE_TRADINGVIEW_CHART
+        enable_chart = ENABLE_TRADINGVIEW_CHART
+    except ImportError:
+        pass
+
+    # 尝试生成 TradingView 图表
+    chart_data = None
+    if enable_chart:
+        try:
+            from chart_generator import generate_tradingview_chart
+            logger.info(f"📊 正在为 ${symbol} 生成 TradingView 图表...")
+            chart_data = generate_tradingview_chart(symbol)
+        except Exception as e:
+            logger.warning(f"⚠️ 图表生成失败，将只发送文字消息: {e}")
+
+    # 格式化融合信号消息
     message = format_confluence_message(symbol, price, alpha_count, fomo_count)
-    # 发送并置顶
-    return send_telegram_message(message, pin_message=True)
+
+    # 如果有图表，发送图片+文字；否则只发送文字
+    if chart_data:
+        logger.info(f"📷 发送融合信号（带图表）: ${symbol}")
+        return send_telegram_photo(chart_data, caption=message, pin_message=True)
+    else:
+        logger.info(f"📝 发送融合信号（纯文字）: ${symbol}")
+        return send_telegram_message(message, pin_message=True)

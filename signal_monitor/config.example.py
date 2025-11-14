@@ -62,6 +62,29 @@ SOCKS5_PROXY = ""
 HTTP_PROXY = ""
 # 示例: HTTP_PROXY = "http://proxy.example.com:8080"
 
+# ==================== TradingView 图表配置 ====================
+# 是否启用 TradingView 图表生成（融合信号时自动生成图表）
+ENABLE_TRADINGVIEW_CHART = True
+
+# chart-img.com API Key
+# 获取方式: https://www.chart-img.com/
+CHART_IMG_API_KEY = ""
+
+# TradingView 布局 ID（需要公开分享的布局）
+# 获取方式:
+#   1. 在 TradingView 中创建并保存你的图表布局
+#   2. 点击右上角 "分享" 按钮，选择 "Make chart public"
+#   3. 布局 URL 中的最后一部分就是 Layout ID
+#   例如: https://www.tradingview.com/chart/oeTZqtUR/ -> Layout ID = oeTZqtUR
+CHART_IMG_LAYOUT_ID = "oeTZqtUR"
+
+# 图表尺寸（像素）
+CHART_IMG_WIDTH = 1200
+CHART_IMG_HEIGHT = 800
+
+# 图表生成超时时间（秒，建议 60-90 秒）
+CHART_IMG_TIMEOUT = 90
+
 # ==================== 日志配置 ====================
 # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
 # DEBUG: 详细的调试信息
