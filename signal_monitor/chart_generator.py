@@ -82,88 +82,122 @@ def generate_tradingview_chart(
     if not symbol_clean.endswith('USDT'):
         symbol_clean = f"{symbol_clean}USDT"
 
-    binance_symbol = f"BINANCE:{symbol_clean}"
+    # 优先使用期货符号（永续合约）
+    binance_futures_symbol = f"BINANCE:{symbol_clean}.P"
+    binance_spot_symbol = f"BINANCE:{symbol_clean}"
 
-    payload = {
-        'width': width,
-        'height': height,
-        'format': 'png',
-        'symbol': binance_symbol
-    }
+    # 尝试生成图表的符号列表（优先期货）
+    symbols_to_try = [binance_futures_symbol, binance_spot_symbol]
+    
+    logger.info(f"📊 正在为 ${symbol.upper().replace('$', '')} 生成 TradingView 图表...")
+    
+    # 尝试不同的符号格式
+    for attempt, binance_symbol in enumerate(symbols_to_try, 1):
+        logger.info(f"📊 正在生成 TradingView 图表: {binance_symbol}")
+        if attempt > 1:
+            logger.info(f"   (尝试备用符号格式 {attempt}/{len(symbols_to_try)})")
+        
+        payload = {
+            'width': width,
+            'height': height,
+            'format': 'png',
+            'symbol': binance_symbol
+        }
 
-    logger.info(f"📊 正在生成 TradingView 图表: {binance_symbol}")
-    logger.debug(f"   API URL: {url}")
-    logger.debug(f"   尺寸: {width}x{height}")
+        logger.debug(f"   API URL: {url}")
+        logger.debug(f"   尺寸: {width}x{height}")
 
-    try:
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=timeout
-        )
+        try:
+            response = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=timeout
+            )
 
-        if response.status_code == 200:
-            content_type = response.headers.get('Content-Type', '')
+            if response.status_code == 200:
+                content_type = response.headers.get('Content-Type', '')
 
-            if 'image' in content_type:
-                image_data = response.content
-                size_kb = len(image_data) / 1024
-                logger.info(f"✅ 图表生成成功: {binance_symbol} ({size_kb:.2f} KB)")
+                if 'image' in content_type:
+                    image_data = response.content
+                    size_kb = len(image_data) / 1024
+                    logger.info(f"✅ 图表生成成功: {binance_symbol} ({size_kb:.2f} KB)")
 
-                # 可选：保存到文件
-                if save_to_file and output_path:
-                    os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
-                    with open(output_path, 'wb') as f:
-                        f.write(image_data)
-                    logger.info(f"💾 图表已保存: {output_path}")
+                    # 可选：保存到文件
+                    if save_to_file and output_path:
+                        os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
+                        with open(output_path, 'wb') as f:
+                            f.write(image_data)
+                        logger.info(f"💾 图表已保存: {output_path}")
 
-                return image_data
-            else:
-                logger.error(f"❌ 响应类型错误: {content_type}")
-                logger.error(f"   响应内容: {response.text[:500]}")
-                return None
-
-        elif response.status_code == 403:
-            # 尝试解析错误详情
-            try:
-                error_data = response.json()
-                error_msg = error_data.get('message', '未知 403 错误')
-                logger.error(f"❌ 图表生成失败: 403 Forbidden - {error_msg}")
-                
-                if "Resolution Limit" in error_msg:
-                    logger.error(f"   原因: API 分辨率限制，当前请求 {width}x{height}")
-                    logger.error(f"   解决方案: 降低图表分辨率到允许范围内")
-                elif "layout" in error_msg.lower():
-                    logger.error(f"   可能原因: TradingView 布局未公开分享")
-                    logger.error(f"   解决方案:")
-                    logger.error(f"   1. 访问: https://www.tradingview.com/chart/{layout_id}/")
-                    logger.error(f"   2. 点击右上角 '分享' 按钮")
-                    logger.error(f"   3. 选择 'Make chart public' 或启用 'Anyone with the link can view'")
+                    return image_data
                 else:
-                    logger.error(f"   详细错误: {error_msg}")
-            except:
-                # 无法解析 JSON，使用原始文本
-                logger.error(f"❌ 图表生成失败: 403 Forbidden")
-                logger.error(f"   响应内容: {response.text[:200]}")
+                    logger.error(f"❌ 响应类型错误: {content_type}")
+                    logger.error(f"   响应内容: {response.text[:500]}")
+
+            elif response.status_code == 403:
+                # 尝试解析错误详情
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get('message', '未知 403 错误')
+                    logger.error(f"❌ 图表生成失败: 403 Forbidden - {error_msg}")
+                    
+                    if "Resolution Limit" in error_msg:
+                        logger.error(f"   原因: API 分辨率限制，当前请求 {width}x{height}")
+                        logger.error(f"   解决方案: 降低图表分辨率到允许范围内")
+                        return None  # 分辨率问题不需要尝试其他符号
+                    elif "layout" in error_msg.lower():
+                        logger.error(f"   可能原因: TradingView 布局未公开分享")
+                        logger.error(f"   解决方案:")
+                        logger.error(f"   1. 访问: https://www.tradingview.com/chart/{layout_id}/")
+                        logger.error(f"   2. 点击右上角 '分享' 按钮")
+                        logger.error(f"   3. 选择 'Make chart public' 或启用 'Anyone with the link can view'")
+                        return None  # 布局问题不需要尝试其他符号
+                    else:
+                        logger.error(f"   详细错误: {error_msg}")
+                except:
+                    # 无法解析 JSON，使用原始文本
+                    logger.error(f"❌ 图表生成失败: 403 Forbidden")
+                    logger.error(f"   响应内容: {response.text[:200]}")
+
+            elif response.status_code == 422:
+                # Invalid Symbol - 尝试下一个符号格式
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get('message', 'Invalid Symbol')
+                    if attempt < len(symbols_to_try):
+                        logger.warning(f"⚠️ 符号无效: {binance_symbol} - {error_msg}，尝试备用格式...")
+                        continue  # 尝试下一个符号
+                    else:
+                        logger.error(f"❌ 所有符号格式都无效: {error_msg}")
+                except:
+                    if attempt < len(symbols_to_try):
+                        logger.warning(f"⚠️ 符号无效: {binance_symbol}，尝试备用格式...")
+                        continue
+                    else:
+                        logger.error(f"❌ 所有符号格式都无效: {response.text[:200]}")
+
+            else:
+                logger.error(f"❌ 图表生成失败: HTTP {response.status_code}")
+                logger.error(f"   响应: {response.text[:500]}")
+                if attempt < len(symbols_to_try):
+                    continue  # 尝试下一个符号
+
+        except requests.exceptions.Timeout:
+            logger.error(f"❌ 图表生成超时 ({timeout}s)")
             return None
 
-        else:
-            logger.error(f"❌ 图表生成失败: HTTP {response.status_code}")
-            logger.error(f"   响应: {response.text[:500]}")
+        except requests.exceptions.ConnectionError:
+            logger.error(f"❌ 网络连接失败，无法访问 chart-img.com")
             return None
 
-    except requests.exceptions.Timeout:
-        logger.error(f"❌ 图表生成超时 ({timeout}s)")
-        return None
-
-    except requests.exceptions.ConnectionError:
-        logger.error(f"❌ 网络连接失败，无法访问 chart-img.com")
-        return None
-
-    except Exception as e:
-        logger.exception(f"❌ 图表生成异常: {e}")
-        return None
+        except Exception as e:
+            logger.exception(f"❌ 图表生成异常: {e}")
+            return None
+    
+    # 所有符号格式都尝试失败
+    logger.error(f"❌ 无法为 ${symbol.upper().replace('$', '')} 生成图表（已尝试期货和现货符号）")
+    return None
 
 
 def test_chart_generation(symbol='BTC'):
