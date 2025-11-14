@@ -125,12 +125,27 @@ def generate_tradingview_chart(
                 return None
 
         elif response.status_code == 403:
-            logger.error(f"❌ 图表生成失败: 403 Forbidden")
-            logger.error(f"   可能原因: TradingView 布局未公开分享")
-            logger.error(f"   解决方案:")
-            logger.error(f"   1. 访问: https://www.tradingview.com/chart/{layout_id}/")
-            logger.error(f"   2. 点击右上角 '分享' 按钮")
-            logger.error(f"   3. 选择 'Make chart public' 或启用 'Anyone with the link can view'")
+            # 尝试解析错误详情
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message', '未知 403 错误')
+                logger.error(f"❌ 图表生成失败: 403 Forbidden - {error_msg}")
+                
+                if "Resolution Limit" in error_msg:
+                    logger.error(f"   原因: API 分辨率限制，当前请求 {width}x{height}")
+                    logger.error(f"   解决方案: 降低图表分辨率到允许范围内")
+                elif "layout" in error_msg.lower():
+                    logger.error(f"   可能原因: TradingView 布局未公开分享")
+                    logger.error(f"   解决方案:")
+                    logger.error(f"   1. 访问: https://www.tradingview.com/chart/{layout_id}/")
+                    logger.error(f"   2. 点击右上角 '分享' 按钮")
+                    logger.error(f"   3. 选择 'Make chart public' 或启用 'Anyone with the link can view'")
+                else:
+                    logger.error(f"   详细错误: {error_msg}")
+            except:
+                # 无法解析 JSON，使用原始文本
+                logger.error(f"❌ 图表生成失败: 403 Forbidden")
+                logger.error(f"   响应内容: {response.text[:200]}")
             return None
 
         else:
