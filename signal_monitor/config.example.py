@@ -79,8 +79,11 @@ CHART_IMG_API_KEY = ""
 CHART_IMG_LAYOUT_ID = "oeTZqtUR"
 
 # 图表尺寸（像素）
-CHART_IMG_WIDTH = 800
-CHART_IMG_HEIGHT = 600
+# 根据您的订阅计划选择合适的分辨率：
+# 免费/基础计划：最大 800x600
+# MEGA 订阅：最大 1920x1600，推荐 1920x1200 或 1600x1000
+CHART_IMG_WIDTH = 1600
+CHART_IMG_HEIGHT = 1000
 
 # 图表生成超时时间（秒，建议 60-90 秒）
 CHART_IMG_TIMEOUT = 90

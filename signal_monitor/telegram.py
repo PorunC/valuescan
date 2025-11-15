@@ -1354,7 +1354,7 @@ def format_confluence_message(symbol, price, alpha_count, fomo_count):
 
 def send_confluence_alert(symbol, price, alpha_count, fomo_count):
     """
-    发送融合信号提醒（包含 TradingView 图表，置顶消息）
+    发送融合信号提醒（先发送文字消息，异步生成图表后更新）
 
     Args:
         symbol: 币种符号
@@ -1367,7 +1367,18 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
     """
     logger.info(f"🚨 发送融合信号提醒: ${symbol}")
 
-    # 检查是否启用图表生成
+    # 格式化融合信号消息
+    message = format_confluence_message(symbol, price, alpha_count, fomo_count)
+
+    # 先立即发送文字消息
+    logger.info(f"📝 立即发送融合信号（文字）: ${symbol}")
+    text_result = send_telegram_message(message, pin_message=True)
+    
+    if not text_result:
+        logger.error(f"❌ 文字消息发送失败: ${symbol}")
+        return False
+
+    # 检查是否启用异步图表生成
     enable_chart = True
     try:
         from config import ENABLE_TRADINGVIEW_CHART
@@ -1375,23 +1386,36 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
     except ImportError:
         pass
 
-    # 尝试生成 TradingView 图表
-    chart_data = None
     if enable_chart:
         try:
-            from chart_generator import generate_tradingview_chart
-            logger.info(f"📊 正在为 ${symbol} 生成 TradingView 图表...")
-            chart_data = generate_tradingview_chart(symbol)
+            from chart_generator import generate_tradingview_chart_async
+            
+            # 异步生成图表的回调函数
+            def chart_ready_callback(task_id, symbol, chart_data):
+                """图表生成完成后的回调"""
+                try:
+                    if chart_data:
+                        logger.info(f"📊 图表生成完成，发送图片: ${symbol} (任务ID: {task_id})")
+                        # 发送图片消息（不置顶，因为文字消息已经置顶了）
+                        photo_result = send_telegram_photo(
+                            chart_data, 
+                            caption=f"📈 ${symbol} TradingView 图表",
+                            pin_message=False
+                        )
+                        if photo_result:
+                            logger.info(f"✅ 图表发送成功: ${symbol}")
+                        else:
+                            logger.warning(f"⚠️ 图表发送失败: ${symbol}")
+                    else:
+                        logger.warning(f"⚠️ 图表生成失败，跳过图片发送: ${symbol}")
+                except Exception as e:
+                    logger.error(f"❌ 图表回调处理异常: {e}")
+            
+            # 提交异步图表生成任务
+            task_id = generate_tradingview_chart_async(symbol, callback=chart_ready_callback)
+            logger.info(f"� 已启动异步图表生成: ${symbol} (任务ID: {task_id})")
+            
         except Exception as e:
-            logger.warning(f"⚠️ 图表生成失败，将只发送文字消息: {e}")
+            logger.warning(f"⚠️ 异步图表生成启动失败: {e}")
 
-    # 格式化融合信号消息
-    message = format_confluence_message(symbol, price, alpha_count, fomo_count)
-
-    # 如果有图表，发送图片+文字；否则只发送文字
-    if chart_data:
-        logger.info(f"📷 发送融合信号（带图表）: ${symbol}")
-        return send_telegram_photo(chart_data, caption=message, pin_message=True)
-    else:
-        logger.info(f"📝 发送融合信号（纯文字）: ${symbol}")
-        return send_telegram_message(message, pin_message=True)
+    return True

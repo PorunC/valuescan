@@ -1,11 +1,15 @@
 """
 TradingView 图表生成模块
 使用 chart-img.com API 生成 TradingView 图表图片
+支持同步和异步生成模式
 """
 
 import requests
 import os
+import threading
+import time
 from io import BytesIO
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from logger import logger
 
 # 默认配置（将在 config.py 中设置）
@@ -14,6 +18,141 @@ DEFAULT_LAYOUT_ID = "oeTZqtUR"
 DEFAULT_CHART_WIDTH = 1200
 DEFAULT_CHART_HEIGHT = 800
 DEFAULT_TIMEOUT = 90
+
+# 异步图表生成配置
+_executor = None
+_chart_tasks = {}  # {task_id: {'status': 'processing', 'result': None, 'callback': func}}
+_task_counter = 0
+_lock = threading.Lock()
+
+
+class AsyncChartManager:
+    """异步图表生成管理器"""
+    
+    @staticmethod
+    def initialize(max_workers=3):
+        """初始化线程池"""
+        global _executor
+        if _executor is None:
+            _executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="ChartGen")
+            logger.info(f"📊 异步图表生成器已初始化 (工作线程: {max_workers})")
+    
+    @staticmethod
+    def shutdown():
+        """关闭线程池"""
+        global _executor
+        if _executor:
+            _executor.shutdown(wait=True)
+            _executor = None
+            logger.info("📊 异步图表生成器已关闭")
+    
+    @staticmethod
+    def get_task_status(task_id):
+        """获取任务状态"""
+        with _lock:
+            return _chart_tasks.get(task_id, {}).get('status', 'not_found')
+    
+    @staticmethod
+    def get_task_result(task_id):
+        """获取任务结果"""
+        with _lock:
+            task = _chart_tasks.get(task_id)
+            if task and task['status'] == 'completed':
+                return task['result']
+            return None
+    
+    @staticmethod
+    def cleanup_completed_tasks(max_age=300):
+        """清理已完成的旧任务 (默认5分钟)"""
+        current_time = time.time()
+        with _lock:
+            to_remove = []
+            for task_id, task in _chart_tasks.items():
+                if (task['status'] in ['completed', 'failed'] and 
+                    current_time - task.get('timestamp', 0) > max_age):
+                    to_remove.append(task_id)
+            
+            for task_id in to_remove:
+                del _chart_tasks[task_id]
+            
+            if to_remove:
+                logger.debug(f"🧹 清理了 {len(to_remove)} 个过期图表任务")
+
+
+def _chart_generation_worker(task_id, symbol, callback=None, **kwargs):
+    """图表生成工作函数"""
+    try:
+        logger.debug(f"🔄 开始生成图表: {symbol} (任务ID: {task_id})")
+        
+        # 调用原有的同步生成函数
+        chart_data = generate_tradingview_chart(symbol, **kwargs)
+        
+        with _lock:
+            _chart_tasks[task_id]['status'] = 'completed' if chart_data else 'failed'
+            _chart_tasks[task_id]['result'] = chart_data
+            _chart_tasks[task_id]['timestamp'] = time.time()
+        
+        if chart_data:
+            logger.info(f"✅ 异步图表生成成功: {symbol} (任务ID: {task_id})")
+        else:
+            logger.warning(f"⚠️ 异步图表生成失败: {symbol} (任务ID: {task_id})")
+        
+        # 执行回调函数
+        if callback and callable(callback):
+            try:
+                callback(task_id, symbol, chart_data)
+            except Exception as e:
+                logger.error(f"❌ 图表生成回调执行失败: {e}")
+                
+    except Exception as e:
+        logger.exception(f"❌ 异步图表生成异常: {symbol} (任务ID: {task_id}) - {e}")
+        with _lock:
+            _chart_tasks[task_id]['status'] = 'failed'
+            _chart_tasks[task_id]['result'] = None
+            _chart_tasks[task_id]['timestamp'] = time.time()
+
+
+def generate_tradingview_chart_async(symbol, callback=None, **kwargs):
+    """
+    异步生成 TradingView 图表
+    
+    Args:
+        symbol: 交易对符号
+        callback: 完成后的回调函数 callback(task_id, symbol, chart_data)
+        **kwargs: 其他参数传递给同步生成函数
+    
+    Returns:
+        str: 任务ID，可用于查询状态和结果
+    """
+    global _task_counter
+    
+    # 确保线程池已初始化
+    AsyncChartManager.initialize()
+    
+    # 生成任务ID
+    with _lock:
+        _task_counter += 1
+        task_id = f"chart_{_task_counter}_{int(time.time())}"
+        
+        # 记录任务
+        _chart_tasks[task_id] = {
+            'status': 'processing',
+            'result': None,
+            'symbol': symbol,
+            'timestamp': time.time(),
+            'callback': callback
+        }
+    
+    # 提交异步任务
+    if _executor:
+        _executor.submit(_chart_generation_worker, task_id, symbol, callback, **kwargs)
+        logger.info(f"🚀 已提交异步图表生成任务: {symbol} (任务ID: {task_id})")
+    else:
+        logger.error("❌ 线程池未初始化，无法提交异步任务")
+        with _lock:
+            _chart_tasks[task_id]['status'] = 'failed'
+    
+    return task_id
 
 
 def generate_tradingview_chart(
@@ -232,14 +371,63 @@ if __name__ == '__main__':
     print("TradingView 图表生成器测试")
     print("=" * 80)
 
-    # 测试几个常见交易对
-    test_symbols = ['BTC', 'ETH', 'SOL']
+    # 初始化异步管理器
+    AsyncChartManager.initialize(max_workers=2)
+    
+    try:
+        # 测试几个常见交易对
+        test_symbols = ['BTC', 'ETH', 'SOL']
 
-    for symbol in test_symbols:
-        print(f"\n测试 {symbol}...")
-        success = test_chart_generation(symbol)
-        print(f"结果: {'✅ 成功' if success else '❌ 失败'}")
+        # 测试同步生成
+        print("\n🔄 测试同步图表生成...")
+        for symbol in test_symbols:
+            print(f"\n测试 {symbol}...")
+            success = test_chart_generation(symbol)
+            print(f"结果: {'✅ 成功' if success else '❌ 失败'}")
+
+        # 测试异步生成
+        print("\n🚀 测试异步图表生成...")
+        task_ids = []
+        
+        def async_callback(task_id, symbol, chart_data):
+            if chart_data:
+                print(f"✅ 异步生成成功: {symbol} ({len(chart_data)/1024:.1f} KB)")
+            else:
+                print(f"❌ 异步生成失败: {symbol}")
+        
+        for symbol in test_symbols:
+            task_id = generate_tradingview_chart_async(symbol, callback=async_callback)
+            task_ids.append(task_id)
+            print(f"🚀 已提交异步任务: {symbol} (ID: {task_id})")
+        
+        # 等待异步任务完成
+        print("\n⏳ 等待异步任务完成...")
+        import time
+        for i in range(30):  # 最多等待30秒
+            time.sleep(1)
+            completed = sum(1 for tid in task_ids 
+                          if AsyncChartManager.get_task_status(tid) in ['completed', 'failed'])
+            if completed == len(task_ids):
+                break
+            print(f"进度: {completed}/{len(task_ids)}")
+        
+        print(f"\n异步测试完成！")
+        
+    finally:
+        # 清理资源
+        AsyncChartManager.shutdown()
 
     print("\n" + "=" * 80)
     print("测试完成")
     print("=" * 80)
+
+
+# 模块清理函数
+import atexit
+
+def _cleanup_async_manager():
+    """程序退出时清理异步管理器"""
+    AsyncChartManager.shutdown()
+
+# 注册退出时的清理函数
+atexit.register(_cleanup_async_manager)
