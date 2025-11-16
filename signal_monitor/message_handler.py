@@ -206,7 +206,8 @@ def process_message_item(item, idx=None, send_to_telegram=False, signal_callback
     if send_to_telegram:
         logger.info(f"📤 发送消息到 Telegram...")
         telegram_message = format_message_for_telegram(item)
-        if send_telegram_message(telegram_message):
+        telegram_result = send_telegram_message(telegram_message)
+        if telegram_result and telegram_result.get("success"):
             # 发送成功后记录到数据库
             if msg_id:
                 if mark_message_processed(msg_id, msg_type, symbol, title, created_time):

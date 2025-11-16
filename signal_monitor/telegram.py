@@ -47,16 +47,16 @@ def send_telegram_message(message_text, pin_message=False):
         pin_message: 是否置顶该消息（默认 False）
 
     Returns:
-        bool: 发送成功返回 True，否则返回 False
+        dict: 发送成功返回包含 message_id 的字典，失败返回 None
     """
     # 检查是否启用 Telegram 通知
     if not ENABLE_TELEGRAM:
         logger.info("  ⏭️  Telegram 通知已禁用，跳过发送")
-        return True  # 返回 True 以便继续后续流程（数据库存储等）
+        return {"success": True, "message_id": None}  # 返回成功状态以便继续后续流程
 
     if not TELEGRAM_BOT_TOKEN:
         logger.warning("  ⚠️ Telegram Bot Token 未配置，跳过发送")
-        return False
+        return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
@@ -84,21 +84,21 @@ def send_telegram_message(message_text, pin_message=False):
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code == 200:
             logger.info("  ✅ Telegram 消息发送成功")
+            
+            result = response.json()
+            message_id = result.get('result', {}).get('message_id')
 
             # 如果需要置顶消息
-            if pin_message:
-                result = response.json()
-                message_id = result.get('result', {}).get('message_id')
-                if message_id:
-                    _pin_telegram_message(message_id)
+            if pin_message and message_id:
+                _pin_telegram_message(message_id)
 
-            return True
+            return {"success": True, "message_id": message_id}
         else:
             logger.error(f"  ❌ Telegram 消息发送失败: {response.status_code} - {response.text}")
-            return False
+            return None
     except Exception as e:
         logger.error(f"  ❌ Telegram 消息发送异常: {e}")
-        return False
+        return None
 
 
 def send_telegram_photo(photo_data, caption=None, pin_message=False):
@@ -155,6 +155,63 @@ def send_telegram_photo(photo_data, caption=None, pin_message=False):
             return False
     except Exception as e:
         logger.error(f"  ❌ Telegram 图片发送异常: {e}")
+        return False
+
+
+def edit_message_with_photo(message_id, photo_data, caption=None):
+    """
+    编辑已发送的消息，将其替换为图片消息
+
+    Args:
+        message_id: 要编辑的消息ID
+        photo_data: 图片数据（bytes）
+        caption: 图片说明文字（支持 HTML 格式，可选）
+
+    Returns:
+        bool: 编辑成功返回 True，否则返回 False
+    """
+    # 检查是否启用 Telegram 通知
+    if not ENABLE_TELEGRAM:
+        logger.info("  ⏭️  Telegram 通知已禁用，跳过编辑")
+        return True
+
+    if not TELEGRAM_BOT_TOKEN:
+        logger.warning("  ⚠️ Telegram Bot Token 未配置，跳过编辑")
+        return False
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageMedia"
+
+    # 构建多部分表单数据
+    files = {
+        'media': ('chart.png', photo_data, 'image/png')
+    }
+
+    # 构建媒体对象
+    media_data = {
+        "type": "photo",
+        "media": "attach://media"
+    }
+    
+    if caption:
+        media_data["caption"] = caption
+        media_data["parse_mode"] = "HTML"
+
+    data = {
+        'chat_id': TELEGRAM_CHAT_ID,
+        'message_id': message_id,
+        'media': json.dumps(media_data)
+    }
+
+    try:
+        response = requests.post(url, data=data, files=files, timeout=30)
+        if response.status_code == 200:
+            logger.info(f"  ✅ Telegram 消息编辑成功 (ID: {message_id})")
+            return True
+        else:
+            logger.error(f"  ❌ Telegram 消息编辑失败: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"  ❌ Telegram 消息编辑异常: {e}")
         return False
 
 
@@ -1354,7 +1411,7 @@ def format_confluence_message(symbol, price, alpha_count, fomo_count):
 
 def send_confluence_alert(symbol, price, alpha_count, fomo_count):
     """
-    发送融合信号提醒（异步生成图表后文字和图片一起发送）
+    发送融合信号提醒（先发送文字消息，异步生成图表后编辑消息添加图片）
 
     Args:
         symbol: 币种符号
@@ -1365,10 +1422,23 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
     Returns:
         bool: 发送成功返回 True，否则返回 False
     """
-    logger.info(f"🚨 准备发送融合信号提醒: ${symbol}")
+    logger.info(f"🚨 发送融合信号提醒: ${symbol}")
 
     # 格式化融合信号消息
     message = format_confluence_message(symbol, price, alpha_count, fomo_count)
+
+    # 先立即发送文字消息
+    logger.info(f"📝 立即发送融合信号（文字）: ${symbol}")
+    text_result = send_telegram_message(message, pin_message=True)
+    
+    if not text_result or not text_result.get("success"):
+        logger.error(f"❌ 文字消息发送失败: ${symbol}")
+        return False
+
+    message_id = text_result.get("message_id")
+    if not message_id:
+        logger.warning(f"⚠️ 未获取到消息ID，无法后续编辑: ${symbol}")
+        return True  # 文字消息已发送成功
 
     # 检查是否启用图表生成
     enable_chart = True
@@ -1384,41 +1454,30 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
             
             # 异步生成图表的回调函数
             def chart_ready_callback(task_id, symbol, chart_data):
-                """图表生成完成后的回调 - 文字和图片一起发送"""
+                """图表生成完成后的回调 - 编辑已发送的消息添加图片"""
                 try:
                     if chart_data:
-                        logger.info(f"📊 图表生成完成，发送融合信号（文字+图片）: ${symbol} (任务ID: {task_id})")
-                        # 发送带图片的消息，文字作为图片说明
-                        photo_result = send_telegram_photo(
+                        logger.info(f"📊 图表生成完成，编辑消息添加图片: ${symbol} (任务ID: {task_id})")
+                        # 编辑已发送的消息，将其替换为图片消息
+                        edit_result = edit_message_with_photo(
+                            message_id,
                             chart_data, 
-                            caption=message,  # 使用完整的融合信号文字作为图片说明
-                            pin_message=True  # 置顶融合信号
+                            caption=message  # 使用完整的融合信号文字作为图片说明
                         )
-                        if photo_result:
-                            logger.info(f"✅ 融合信号发送成功（文字+图片）: ${symbol}")
+                        if edit_result:
+                            logger.info(f"✅ 融合信号消息编辑成功（添加图片）: ${symbol}")
                         else:
-                            logger.warning(f"⚠️ 融合信号发送失败，改为只发文字: ${symbol}")
-                            # 如果图片发送失败，fallback到只发文字
-                            send_telegram_message(message, pin_message=True)
+                            logger.warning(f"⚠️ 消息编辑失败，但文字消息已发送: ${symbol}")
                     else:
-                        logger.warning(f"⚠️ 图表生成失败，只发送文字消息: ${symbol}")
-                        # 图表生成失败，只发送文字消息
-                        send_telegram_message(message, pin_message=True)
+                        logger.warning(f"⚠️ 图表生成失败，保持文字消息: ${symbol}")
                 except Exception as e:
-                    logger.error(f"❌ 融合信号回调处理异常，改为只发文字: {e}")
-                    # 发生异常时，fallback到只发文字
-                    send_telegram_message(message, pin_message=True)
+                    logger.error(f"❌ 图表回调处理异常: {e}")
             
             # 提交异步图表生成任务
             task_id = generate_tradingview_chart_async(symbol, callback=chart_ready_callback)
-            logger.info(f"🔄 已启动异步图表生成，等待完成后发送: ${symbol} (任务ID: {task_id})")
-            return True
+            logger.info(f"🔄 已启动异步图表生成，完成后编辑消息: ${symbol} (任务ID: {task_id})")
             
         except Exception as e:
-            logger.warning(f"⚠️ 异步图表生成启动失败，改为只发文字: {e}")
-            # 异步图表启动失败，fallback到只发文字
-            return send_telegram_message(message, pin_message=True)
-    else:
-        # 未启用图表，只发送文字消息
-        logger.info(f"📝 图表功能未启用，只发送文字消息: ${symbol}")
-        return send_telegram_message(message, pin_message=True)
+            logger.warning(f"⚠️ 异步图表生成启动失败: {e}")
+
+    return True
