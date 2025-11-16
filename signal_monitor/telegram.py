@@ -1481,3 +1481,72 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
             logger.warning(f"⚠️ 异步图表生成启动失败: {e}")
 
     return True
+
+
+def send_message_with_async_chart(message_text, symbol, pin_message=False):
+    """
+    发送消息并异步生成图表（先发文字，后编辑添加图表）
+
+    Args:
+        message_text: 要发送的消息文本
+        symbol: 币种符号（用于生成图表）
+        pin_message: 是否置顶该消息
+
+    Returns:
+        dict: 发送结果，包含 success 和 message_id
+    """
+    logger.info(f"📝 发送消息并异步生成图表: ${symbol}")
+
+    # 先立即发送文字消息
+    text_result = send_telegram_message(message_text, pin_message=pin_message)
+    
+    if not text_result or not text_result.get("success"):
+        logger.error(f"❌ 文字消息发送失败: ${symbol}")
+        return text_result
+
+    message_id = text_result.get("message_id")
+    if not message_id:
+        logger.warning(f"⚠️ 未获取到消息ID，无法后续编辑: ${symbol}")
+        return text_result  # 文字消息已发送成功
+
+    # 检查是否启用图表生成
+    enable_chart = True
+    try:
+        from config import ENABLE_TRADINGVIEW_CHART
+        enable_chart = ENABLE_TRADINGVIEW_CHART
+    except ImportError:
+        pass
+
+    if enable_chart:
+        try:
+            from chart_generator import generate_tradingview_chart_async
+            
+            # 异步生成图表的回调函数
+            def chart_ready_callback(task_id, symbol, chart_data):
+                """图表生成完成后的回调 - 编辑已发送的消息添加图片"""
+                try:
+                    if chart_data:
+                        logger.info(f"📊 图表生成完成，编辑消息添加图片: ${symbol} (任务ID: {task_id})")
+                        # 编辑已发送的消息，将其替换为图片消息
+                        edit_result = edit_message_with_photo(
+                            message_id,
+                            chart_data, 
+                            caption=message_text  # 使用完整的消息文字作为图片说明
+                        )
+                        if edit_result:
+                            logger.info(f"✅ 消息编辑成功（添加图片）: ${symbol}")
+                        else:
+                            logger.warning(f"⚠️ 消息编辑失败，但文字消息已发送: ${symbol}")
+                    else:
+                        logger.warning(f"⚠️ 图表生成失败，保持文字消息: ${symbol}")
+                except Exception as e:
+                    logger.error(f"❌ 图表回调处理异常: {e}")
+            
+            # 提交异步图表生成任务
+            task_id = generate_tradingview_chart_async(symbol, callback=chart_ready_callback)
+            logger.info(f"🔄 已启动异步图表生成，完成后编辑消息: ${symbol} (任务ID: {task_id})")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ 异步图表生成启动失败: {e}")
+
+    return text_result

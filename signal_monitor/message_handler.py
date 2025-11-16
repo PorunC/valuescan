@@ -206,7 +206,19 @@ def process_message_item(item, idx=None, send_to_telegram=False, signal_callback
     if send_to_telegram:
         logger.info(f"📤 发送消息到 Telegram...")
         telegram_message = format_message_for_telegram(item)
-        telegram_result = send_telegram_message(telegram_message)
+        
+        # 检查是否为支持图表的信号类型（Alpha: 110, FOMO: 113）
+        supports_chart = msg_type in [110, 113] and symbol is not None
+        
+        if supports_chart:
+            # 对于Alpha和FOMO信号，使用异步图表功能
+            logger.info(f"📊 检测到图表支持的信号类型 {msg_type}，启用异步图表生成")
+            from telegram import send_message_with_async_chart
+            telegram_result = send_message_with_async_chart(telegram_message, symbol, pin_message=False)
+        else:
+            # 对于其他信号，使用普通发送
+            telegram_result = send_telegram_message(telegram_message)
+        
         if telegram_result and telegram_result.get("success"):
             # 发送成功后记录到数据库
             if msg_id:
