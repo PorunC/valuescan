@@ -160,7 +160,7 @@ def send_telegram_photo(photo_data, caption=None, pin_message=False):
 
 def edit_message_with_photo(message_id, photo_data, caption=None):
     """
-    编辑已发送的消息，将其替换为图片消息
+    编辑已发送的消息，将其替换为图片消息（支持429重试）
 
     Args:
         message_id: 要编辑的消息ID
@@ -202,17 +202,54 @@ def edit_message_with_photo(message_id, photo_data, caption=None):
         'media': json.dumps(media_data)
     }
 
-    try:
-        response = requests.post(url, data=data, files=files, timeout=30)
-        if response.status_code == 200:
-            logger.info(f"  ✅ Telegram 消息编辑成功 (ID: {message_id})")
-            return True
-        else:
-            logger.error(f"  ❌ Telegram 消息编辑失败: {response.status_code} - {response.text}")
+    max_retries = 3
+    base_delay = 2  # 基础延迟秒数
+
+    for attempt in range(max_retries):
+        try:
+            # 添加随机延迟避免并发冲突
+            if attempt > 0:
+                delay = base_delay + (attempt * 2)  # 递增延迟: 2, 4, 6秒
+                logger.info(f"  🔄 等待 {delay} 秒后重试编辑消息 (第 {attempt + 1} 次尝试)")
+                time.sleep(delay)
+
+            response = requests.post(url, data=data, files=files, timeout=30)
+            
+            if response.status_code == 200:
+                logger.info(f"  ✅ Telegram 消息编辑成功 (ID: {message_id})")
+                return True
+            elif response.status_code == 429:
+                # 处理速率限制
+                try:
+                    error_data = response.json()
+                    retry_after = error_data.get('parameters', {}).get('retry_after', 10)
+                    logger.warning(f"  ⏱️ API速率限制，等待 {retry_after} 秒后重试 (尝试 {attempt + 1}/{max_retries})")
+                    if attempt < max_retries - 1:  # 不是最后一次尝试
+                        time.sleep(retry_after + 1)  # 多等1秒确保安全
+                        continue
+                except:
+                    # JSON解析失败，使用默认延迟
+                    logger.warning(f"  ⏱️ API速率限制，等待 10 秒后重试 (尝试 {attempt + 1}/{max_retries})")
+                    if attempt < max_retries - 1:
+                        time.sleep(10)
+                        continue
+                
+                logger.error(f"  ❌ 消息编辑失败，已达最大重试次数: 429 - {response.text}")
+                return False
+            else:
+                logger.error(f"  ❌ Telegram 消息编辑失败: {response.status_code} - {response.text}")
+                if attempt < max_retries - 1:
+                    continue  # 其他错误也重试
+                return False
+                
+        except Exception as e:
+            logger.error(f"  ❌ Telegram 消息编辑异常 (尝试 {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(base_delay)
+                continue
             return False
-    except Exception as e:
-        logger.error(f"  ❌ Telegram 消息编辑异常: {e}")
-        return False
+
+    return False
 
 
 def _pin_telegram_message(message_id):
@@ -1457,7 +1494,12 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
                 """图表生成完成后的回调 - 编辑已发送的消息添加图片"""
                 try:
                     if chart_data:
-                        logger.info(f"📊 图表生成完成，编辑消息添加图片: ${symbol} (任务ID: {task_id})")
+                        # 添加小幅随机延迟避免多个编辑请求冲突
+                        import random
+                        delay = random.uniform(0.5, 2.0)  # 0.5-2秒随机延迟
+                        logger.info(f"📊 图表生成完成，等待 {delay:.1f}秒后编辑融合信号: ${symbol} (任务ID: {task_id})")
+                        time.sleep(delay)
+                        
                         # 编辑已发送的消息，将其替换为图片消息
                         edit_result = edit_message_with_photo(
                             message_id,
@@ -1526,7 +1568,12 @@ def send_message_with_async_chart(message_text, symbol, pin_message=False):
                 """图表生成完成后的回调 - 编辑已发送的消息添加图片"""
                 try:
                     if chart_data:
-                        logger.info(f"📊 图表生成完成，编辑消息添加图片: ${symbol} (任务ID: {task_id})")
+                        # 添加小幅随机延迟避免多个编辑请求冲突
+                        import random
+                        delay = random.uniform(0.5, 2.0)  # 0.5-2秒随机延迟
+                        logger.info(f"📊 图表生成完成，等待 {delay:.1f}秒后编辑消息: ${symbol} (任务ID: {task_id})")
+                        time.sleep(delay)
+                        
                         # 编辑已发送的消息，将其替换为图片消息
                         edit_result = edit_message_with_photo(
                             message_id,
