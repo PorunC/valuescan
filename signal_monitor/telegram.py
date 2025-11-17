@@ -196,10 +196,23 @@ def edit_message_with_photo(message_id, photo_data, caption=None):
         media_data["caption"] = caption
         media_data["parse_mode"] = "HTML"
 
+    # 添加 Inline Keyboard 按钮（保持与原消息一致）
+    inline_keyboard = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🔗 访问 ValueScan",
+                    "url": "https://www.valuescan.io/login?inviteCode=GXZ722"
+                }
+            ]
+        ]
+    }
+
     data = {
         'chat_id': TELEGRAM_CHAT_ID,
         'message_id': message_id,
-        'media': json.dumps(media_data)
+        'media': json.dumps(media_data),
+        'reply_markup': json.dumps(inline_keyboard)
     }
 
     max_retries = 3
