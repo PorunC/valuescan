@@ -207,12 +207,20 @@ def process_message_item(item, idx=None, send_to_telegram=False, signal_callback
         logger.info(f"📤 发送消息到 Telegram...")
         telegram_message = format_message_for_telegram(item)
         
-        # 检查是否为支持图表的信号类型（AI机会监控: 100, Alpha: 110, 资金出逃: 111, FOMO加剧: 112, FOMO: 113）
-        supports_chart = msg_type in [100, 110, 111, 112, 113] and symbol is not None
+        # 检查是否为支持图表的信号类型
+        # AI机会监控: 100, 资金异动: 108, Alpha: 110, 资金出逃: 111, FOMO加剧: 112, FOMO: 113
+        # 对于 type 108 资金异动，仅BTC和ETH支持图表
+        supports_chart = (
+            (msg_type in [100, 110, 111, 112, 113] and symbol is not None) or
+            (msg_type == 108 and symbol is not None and symbol.upper().replace('$', '') in ['BTC', 'ETH'])
+        )
         
         if supports_chart:
-            # 对于AI机会监控、Alpha、资金出逃、FOMO加剧和FOMO信号，使用异步图表功能
-            logger.info(f"📊 检测到图表支持的信号类型 {msg_type}，启用异步图表生成")
+            # 对于AI机会监控、资金异动(BTC/ETH)、Alpha、资金出逃、FOMO加剧和FOMO信号，使用异步图表功能
+            if msg_type == 108:
+                logger.info(f"📊 检测到资金异动信号 (${symbol.upper().replace('$', '')})，启用异步图表生成")
+            else:
+                logger.info(f"📊 检测到图表支持的信号类型 {msg_type}，启用异步图表生成")
             from telegram import send_message_with_async_chart
             telegram_result = send_message_with_async_chart(telegram_message, symbol, pin_message=False)
         else:
