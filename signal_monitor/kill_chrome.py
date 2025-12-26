@@ -162,7 +162,7 @@ def start_chrome_debug_mode(port=None):
             f"--user-data-dir={user_data_dir}",  # 使用当前文件夹下的独立用户数据目录
             "--no-first-run",  # 跳过首次运行体验
             "--no-default-browser-check",  # 跳过默认浏览器检查
-            "https://www.valuescan.io/GEMs/signals"  # 自动打开 valuescan.io 网站
+            "https://www.valuescan.io/AIGEMs/longInflowAlert"  # 自动打开 valuescan.io 网站
         ]
         
         # 使用 subprocess.Popen 启动 Chrome（非阻塞）

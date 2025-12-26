@@ -251,8 +251,8 @@ def capture_api_request(headless=False, signal_callback=None):
             
             # 无头模式：自动打开网站
             try:
-                logger.info("🌍 正在打开 https://www.valuescan.io/GEMs/signals ...")
-                page.get('https://www.valuescan.io/GEMs/signals')
+                logger.info("🌍 正在打开 https://www.valuescan.io/AIGEMs/longInflowAlert ...")
+                page.get('https://www.valuescan.io/AIGEMs/longInflowAlert')
                 time.sleep(2)  # 等待页面加载
                 logger.info("✅ 网站已自动打开")
             except Exception as e:
