@@ -9,6 +9,16 @@ from datetime import datetime, timezone, timedelta
 from logger import logger
 from message_types import MESSAGE_TYPE_MAP, TRADE_TYPE_MAP, FUNDS_MOVEMENT_MAP
 from telegram import send_telegram_message, format_message_for_telegram, send_confluence_alert
+
+# Try to import English formatting module
+try:
+    from telegram_en import format_message_for_telegram_en, format_confluence_message_en
+    from config import TELEGRAM_CHAT_ID_EN
+    HAS_ENGLISH_SUPPORT = bool(TELEGRAM_CHAT_ID_EN)
+except (ImportError, Exception):
+    HAS_ENGLISH_SUPPORT = False
+    format_message_for_telegram_en = None
+    format_confluence_message_en = None
 from database import is_message_processed, mark_message_processed
 from signal_tracker import get_signal_tracker
 
@@ -205,8 +215,19 @@ def process_message_item(item, idx=None, send_to_telegram=False, signal_callback
     # 发送到 Telegram（如果启用）
     if send_to_telegram:
         logger.info(f"📤 发送消息到 Telegram...")
+
+        # 生成中文消息
         telegram_message = format_message_for_telegram(item)
-        
+
+        # 生成英文消息（如果配置了英文频道）
+        telegram_message_en = None
+        if HAS_ENGLISH_SUPPORT and format_message_for_telegram_en:
+            try:
+                telegram_message_en = format_message_for_telegram_en(item)
+                logger.info(f"  📝 已生成英文版本消息")
+            except Exception as e:
+                logger.warning(f"  ⚠️ 生成英文消息失败: {e}")
+
         # 检查是否为支持图表的信号类型
         # AI机会监控: 100, 资金异动: 108, Alpha: 110, 资金出逃: 111, FOMO加剧: 112, FOMO: 113
         # 对于 type 108 资金异动，仅BTC和ETH支持图表
@@ -214,7 +235,7 @@ def process_message_item(item, idx=None, send_to_telegram=False, signal_callback
             (msg_type in [100, 110, 111, 112, 113] and symbol is not None) or
             (msg_type == 108 and symbol is not None and symbol.upper().replace('$', '') in ['BTC', 'ETH'])
         )
-        
+
         if supports_chart:
             # 对于AI机会监控、资金异动(BTC/ETH)、Alpha、资金出逃、FOMO加剧和FOMO信号，使用异步图表功能
             if msg_type == 108:
@@ -222,10 +243,10 @@ def process_message_item(item, idx=None, send_to_telegram=False, signal_callback
             else:
                 logger.info(f"📊 检测到图表支持的信号类型 {msg_type}，启用异步图表生成")
             from telegram import send_message_with_async_chart
-            telegram_result = send_message_with_async_chart(telegram_message, symbol, pin_message=False)
+            telegram_result = send_message_with_async_chart(telegram_message, symbol, pin_message=False, message_text_en=telegram_message_en)
         else:
             # 对于其他信号，使用普通发送
-            telegram_result = send_telegram_message(telegram_message)
+            telegram_result = send_telegram_message(telegram_message, message_text_en=telegram_message_en)
         
         if telegram_result and telegram_result.get("success"):
             # 发送成功后记录到数据库

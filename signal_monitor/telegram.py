@@ -17,6 +17,12 @@ try:
 except ImportError:
     ENABLE_TELEGRAM = True  # 默认启用
 
+# 尝试导入英文频道配置
+try:
+    from config import TELEGRAM_CHAT_ID_EN
+except ImportError:
+    TELEGRAM_CHAT_ID_EN = ""  # 默认：不发送英文版本
+
 # 北京时区 (UTC+8)
 BEIJING_TZ = timezone(timedelta(hours=8))
 
@@ -56,13 +62,14 @@ def get_beijing_time_str(timestamp_ms, format_str='%H:%M:%S'):
     return dt.strftime(format_str) + ' (UTC+8)'
 
 
-def send_telegram_message(message_text, pin_message=False):
+def send_telegram_message(message_text, pin_message=False, message_text_en=None):
     """
-    发送消息到 Telegram（支持多频道）
+    发送消息到 Telegram（支持多频道和双语）
 
     Args:
-        message_text: 要发送的消息文本（支持 HTML 格式）
+        message_text: 要发送的消息文本（支持 HTML 格式，中文）
         pin_message: 是否置顶该消息（默认 False）
+        message_text_en: 英文版本的消息文本（可选，如果提供且配置了英文频道，会发送到英文频道）
 
     Returns:
         dict: 发送成功返回包含 message_ids 的字典（格式: {"success": True, "message_ids": {chat_id: message_id}}），失败返回 None
@@ -76,9 +83,16 @@ def send_telegram_message(message_text, pin_message=False):
         logger.warning("  ⚠️ Telegram Bot Token 未配置，跳过发送")
         return None
 
-    # 规范化 chat_id 配置为列表
+    # 规范化 chat_id 配置为列表（中文频道）
     chat_ids = _normalize_chat_ids(TELEGRAM_CHAT_ID)
-    if not chat_ids:
+
+    # 规范化英文频道配置
+    chat_ids_en = _normalize_chat_ids(TELEGRAM_CHAT_ID_EN) if message_text_en else []
+
+    # 合并所有频道
+    all_chat_ids = chat_ids + chat_ids_en
+
+    if not all_chat_ids:
         logger.warning("  ⚠️ Telegram Chat ID 未配置，跳过发送")
         return None
 
@@ -101,10 +115,19 @@ def send_telegram_message(message_text, pin_message=False):
     failed_count = 0
 
     # 遍历所有 chat_id 发送消息
-    for chat_id in chat_ids:
+    for chat_id in all_chat_ids:
+        # 判断当前频道应该使用哪种语言
+        # 如果在英文频道列表中，使用英文消息；否则使用中文消息
+        is_english_channel = chat_id in chat_ids_en
+        current_message = message_text_en if is_english_channel else message_text
+
+        # 跳过没有消息内容的情况
+        if not current_message:
+            continue
+
         payload = {
             "chat_id": chat_id,
-            "text": message_text,
+            "text": current_message,
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
             "reply_markup": inline_keyboard
@@ -117,7 +140,8 @@ def send_telegram_message(message_text, pin_message=False):
                 message_id = result.get('result', {}).get('message_id')
                 message_ids[chat_id] = message_id
                 success_count += 1
-                logger.info(f"  ✅ Telegram 消息发送成功 (Chat ID: {chat_id})")
+                lang_label = "EN" if is_english_channel else "CN"
+                logger.info(f"  ✅ Telegram 消息发送成功 (Chat ID: {chat_id}, {lang_label})")
 
                 # 如果需要置顶消息
                 if pin_message and message_id:
@@ -131,10 +155,12 @@ def send_telegram_message(message_text, pin_message=False):
 
     # 统计发送结果
     if success_count > 0:
-        logger.info(f"  📊 消息发送统计: 成功 {success_count}/{len(chat_ids)}")
+        cn_count = len([cid for cid in chat_ids if cid in message_ids])
+        en_count = len([cid for cid in chat_ids_en if cid in message_ids])
+        logger.info(f"  📊 消息发送统计: 成功 {success_count}/{len(all_chat_ids)} (CN:{cn_count}, EN:{en_count})")
         return {"success": True, "message_ids": message_ids}
     else:
-        logger.error(f"  ❌ 所有频道消息发送失败 ({failed_count}/{len(chat_ids)})")
+        logger.error(f"  ❌ 所有频道消息发送失败 ({failed_count}/{len(all_chat_ids)})")
         return None
 
 
@@ -213,14 +239,15 @@ def send_telegram_photo(photo_data, caption=None, pin_message=False):
         return False
 
 
-def edit_message_with_photo(message_ids, photo_data, caption=None):
+def edit_message_with_photo(message_ids, photo_data, caption=None, caption_en=None):
     """
-    编辑已发送的消息，将其替换为图片消息（支持多频道和429重试）
+    编辑已发送的消息，将其替换为图片消息（支持多频道和429重试，支持双语caption）
 
     Args:
         message_ids: 要编辑的消息ID字典 (格式: {chat_id: message_id}) 或单个message_id (兼容旧代码)
         photo_data: 图片数据（bytes）
-        caption: 图片说明文字（支持 HTML 格式，可选）
+        caption: 图片说明文字（支持 HTML 格式，可选，中文）
+        caption_en: 英文版本的图片说明文字（可选）
 
     Returns:
         bool: 编辑成功返回 True，否则返回 False
@@ -249,6 +276,9 @@ def edit_message_with_photo(message_ids, photo_data, caption=None):
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageMedia"
 
+    # 获取英文频道列表
+    chat_ids_en = _normalize_chat_ids(TELEGRAM_CHAT_ID_EN) if caption_en else []
+
     success_count = 0
     failed_count = 0
     max_retries = 3
@@ -256,6 +286,10 @@ def edit_message_with_photo(message_ids, photo_data, caption=None):
 
     # 遍历所有 chat_id 编辑消息
     for chat_id, message_id in message_ids.items():
+        # 判断当前频道应该使用哪种语言的 caption
+        is_english_channel = chat_id in chat_ids_en
+        current_caption = caption_en if is_english_channel else caption
+
         for attempt in range(max_retries):
             try:
                 # 添加随机延迟避免并发冲突
@@ -275,8 +309,8 @@ def edit_message_with_photo(message_ids, photo_data, caption=None):
                     "media": "attach://media"
                 }
 
-                if caption:
-                    media_data["caption"] = caption
+                if current_caption:
+                    media_data["caption"] = current_caption
                     media_data["parse_mode"] = "HTML"
 
                 # 添加 Inline Keyboard 按钮（保持与原消息一致）
@@ -1621,22 +1655,23 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
     return True
 
 
-def send_message_with_async_chart(message_text, symbol, pin_message=False):
+def send_message_with_async_chart(message_text, symbol, pin_message=False, message_text_en=None):
     """
-    发送消息并异步生成图表（先发文字，后编辑添加图表）
+    发送消息并异步生成图表（先发文字，后编辑添加图表，支持双语）
 
     Args:
-        message_text: 要发送的消息文本
+        message_text: 要发送的消息文本（中文）
         symbol: 币种符号（用于生成图表）
         pin_message: 是否置顶该消息
+        message_text_en: 英文版本的消息文本（可选）
 
     Returns:
-        dict: 发送结果，包含 success 和 message_id
+        dict: 发送结果，包含 success 和 message_ids
     """
     logger.info(f"📝 发送消息并异步生成图表: ${symbol}")
 
-    # 先立即发送文字消息
-    text_result = send_telegram_message(message_text, pin_message=pin_message)
+    # 先立即发送文字消息（同时发送中英文）
+    text_result = send_telegram_message(message_text, pin_message=pin_message, message_text_en=message_text_en)
 
     if not text_result or not text_result.get("success"):
         logger.error(f"❌ 文字消息发送失败: ${symbol}")
@@ -1661,7 +1696,7 @@ def send_message_with_async_chart(message_text, symbol, pin_message=False):
 
             # 异步生成图表的回调函数
             def chart_ready_callback(task_id, symbol, chart_data):
-                """图表生成完成后的回调 - 编辑已发送的消息添加图片"""
+                """图表生成完成后的回调 - 编辑已发送的消息添加图片（支持双语）"""
                 try:
                     if chart_data:
                         # 添加小幅随机延迟避免多个编辑请求冲突
@@ -1670,11 +1705,12 @@ def send_message_with_async_chart(message_text, symbol, pin_message=False):
                         logger.info(f"📊 图表生成完成，等待 {delay:.1f}秒后编辑消息: ${symbol} (任务ID: {task_id})")
                         time.sleep(delay)
 
-                        # 编辑已发送的消息，将其替换为图片消息（支持多频道）
+                        # 编辑已发送的消息，将其替换为图片消息（支持多频道和双语）
                         edit_result = edit_message_with_photo(
                             message_ids,
                             chart_data,
-                            caption=message_text  # 使用完整的消息文字作为图片说明
+                            caption=message_text,  # 中文版消息文字作为图片说明
+                            caption_en=message_text_en  # 英文版消息文字作为图片说明
                         )
                         if edit_result:
                             logger.info(f"✅ 消息编辑成功（添加图片）: ${symbol}")

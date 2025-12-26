@@ -16,6 +16,13 @@ TELEGRAM_BOT_TOKEN = ""
 # 获取方式: 在 Telegram 中找到 @userinfobot，发送任意消息获取您的 ID
 TELEGRAM_CHAT_ID = ""
 
+# Telegram 英文频道 ID（可选，支持单个或多个）
+# 如果配置此项，系统会向这些频道发送英文版本的消息
+# 留空则不发送英文版本
+# 单个频道示例: TELEGRAM_CHAT_ID_EN = "-1001234567890"
+# 多个频道示例: TELEGRAM_CHAT_ID_EN = ["-1001234567890", "-1009876543210"]
+TELEGRAM_CHAT_ID_EN = ""
+
 # ==================== 消息发送开关 ====================
 # 是否启用 Telegram 通知功能（总开关）
 # False: 完全跳过 Telegram 发送，但不影响数据库存储和 IPC 转发
