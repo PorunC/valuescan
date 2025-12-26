@@ -8,7 +8,10 @@ ValuesCan API 监听工具配置文件示例
 # 获取方式: 在 Telegram 中找到 @BotFather，发送 /newbot 创建机器人
 TELEGRAM_BOT_TOKEN = ""
 
-# Telegram 目标用户 ID
+# Telegram 目标用户 ID 或频道 ID（支持单个或多个）
+# 单个频道示例: TELEGRAM_CHAT_ID = "-1001234567890"
+# 多个频道示例: TELEGRAM_CHAT_ID = ["-1001234567890", "-1009876543210", "123456789"]
+#
 # 频道 ID 格式：-100 开头的数字
 # 获取方式: 在 Telegram 中找到 @userinfobot，发送任意消息获取您的 ID
 TELEGRAM_CHAT_ID = ""

@@ -21,6 +21,24 @@ except ImportError:
 BEIJING_TZ = timezone(timedelta(hours=8))
 
 
+def _normalize_chat_ids(chat_id_config):
+    """
+    规范化 chat_id 配置为列表格式
+
+    Args:
+        chat_id_config: 可以是字符串或列表
+
+    Returns:
+        list: chat_id 列表
+    """
+    if isinstance(chat_id_config, list):
+        return chat_id_config
+    elif isinstance(chat_id_config, str):
+        return [chat_id_config] if chat_id_config else []
+    else:
+        return []
+
+
 def get_beijing_time_str(timestamp_ms, format_str='%H:%M:%S'):
     """
     将时间戳转换为北京时间字符串
@@ -40,22 +58,28 @@ def get_beijing_time_str(timestamp_ms, format_str='%H:%M:%S'):
 
 def send_telegram_message(message_text, pin_message=False):
     """
-    发送消息到 Telegram
+    发送消息到 Telegram（支持多频道）
 
     Args:
         message_text: 要发送的消息文本（支持 HTML 格式）
         pin_message: 是否置顶该消息（默认 False）
 
     Returns:
-        dict: 发送成功返回包含 message_id 的字典，失败返回 None
+        dict: 发送成功返回包含 message_ids 的字典（格式: {"success": True, "message_ids": {chat_id: message_id}}），失败返回 None
     """
     # 检查是否启用 Telegram 通知
     if not ENABLE_TELEGRAM:
         logger.info("  ⏭️  Telegram 通知已禁用，跳过发送")
-        return {"success": True, "message_id": None}  # 返回成功状态以便继续后续流程
+        return {"success": True, "message_ids": {}}  # 返回成功状态以便继续后续流程
 
     if not TELEGRAM_BOT_TOKEN:
         logger.warning("  ⚠️ Telegram Bot Token 未配置，跳过发送")
+        return None
+
+    # 规范化 chat_id 配置为列表
+    chat_ids = _normalize_chat_ids(TELEGRAM_CHAT_ID)
+    if not chat_ids:
+        logger.warning("  ⚠️ Telegram Chat ID 未配置，跳过发送")
         return None
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -72,38 +96,51 @@ def send_telegram_message(message_text, pin_message=False):
         ]
     }
 
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message_text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-        "reply_markup": inline_keyboard
-    }
+    message_ids = {}
+    success_count = 0
+    failed_count = 0
 
-    try:
-        response = requests.post(url, json=payload, timeout=10)
-        if response.status_code == 200:
-            logger.info("  ✅ Telegram 消息发送成功")
-            
-            result = response.json()
-            message_id = result.get('result', {}).get('message_id')
+    # 遍历所有 chat_id 发送消息
+    for chat_id in chat_ids:
+        payload = {
+            "chat_id": chat_id,
+            "text": message_text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "reply_markup": inline_keyboard
+        }
 
-            # 如果需要置顶消息
-            if pin_message and message_id:
-                _pin_telegram_message(message_id)
+        try:
+            response = requests.post(url, json=payload, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+                message_id = result.get('result', {}).get('message_id')
+                message_ids[chat_id] = message_id
+                success_count += 1
+                logger.info(f"  ✅ Telegram 消息发送成功 (Chat ID: {chat_id})")
 
-            return {"success": True, "message_id": message_id}
-        else:
-            logger.error(f"  ❌ Telegram 消息发送失败: {response.status_code} - {response.text}")
-            return None
-    except Exception as e:
-        logger.error(f"  ❌ Telegram 消息发送异常: {e}")
+                # 如果需要置顶消息
+                if pin_message and message_id:
+                    _pin_telegram_message(chat_id, message_id)
+            else:
+                failed_count += 1
+                logger.error(f"  ❌ Telegram 消息发送失败 (Chat ID: {chat_id}): {response.status_code} - {response.text}")
+        except Exception as e:
+            failed_count += 1
+            logger.error(f"  ❌ Telegram 消息发送异常 (Chat ID: {chat_id}): {e}")
+
+    # 统计发送结果
+    if success_count > 0:
+        logger.info(f"  📊 消息发送统计: 成功 {success_count}/{len(chat_ids)}")
+        return {"success": True, "message_ids": message_ids}
+    else:
+        logger.error(f"  ❌ 所有频道消息发送失败 ({failed_count}/{len(chat_ids)})")
         return None
 
 
 def send_telegram_photo(photo_data, caption=None, pin_message=False):
     """
-    发送图片到 Telegram
+    发送图片到 Telegram（支持多频道）
 
     Args:
         photo_data: 图片数据（bytes）
@@ -122,48 +159,66 @@ def send_telegram_photo(photo_data, caption=None, pin_message=False):
         logger.warning("  ⚠️ Telegram Bot Token 未配置，跳过发送")
         return False
 
+    # 规范化 chat_id 配置为列表
+    chat_ids = _normalize_chat_ids(TELEGRAM_CHAT_ID)
+    if not chat_ids:
+        logger.warning("  ⚠️ Telegram Chat ID 未配置，跳过发送")
+        return False
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
 
-    # 构建多部分表单数据
-    files = {
-        'photo': ('chart.png', photo_data, 'image/png')
-    }
+    success_count = 0
+    failed_count = 0
 
-    data = {
-        'chat_id': TELEGRAM_CHAT_ID,
-    }
+    # 遍历所有 chat_id 发送图片
+    for chat_id in chat_ids:
+        # 构建多部分表单数据
+        files = {
+            'photo': ('chart.png', photo_data, 'image/png')
+        }
 
-    if caption:
-        data['caption'] = caption
-        data['parse_mode'] = 'HTML'
+        data = {
+            'chat_id': chat_id,
+        }
 
-    try:
-        response = requests.post(url, data=data, files=files, timeout=30)
-        if response.status_code == 200:
-            logger.info("  ✅ Telegram 图片发送成功")
+        if caption:
+            data['caption'] = caption
+            data['parse_mode'] = 'HTML'
 
-            # 如果需要置顶消息
-            if pin_message:
-                result = response.json()
-                message_id = result.get('result', {}).get('message_id')
-                if message_id:
-                    _pin_telegram_message(message_id)
+        try:
+            response = requests.post(url, data=data, files=files, timeout=30)
+            if response.status_code == 200:
+                success_count += 1
+                logger.info(f"  ✅ Telegram 图片发送成功 (Chat ID: {chat_id})")
 
-            return True
-        else:
-            logger.error(f"  ❌ Telegram 图片发送失败: {response.status_code} - {response.text}")
-            return False
-    except Exception as e:
-        logger.error(f"  ❌ Telegram 图片发送异常: {e}")
+                # 如果需要置顶消息
+                if pin_message:
+                    result = response.json()
+                    message_id = result.get('result', {}).get('message_id')
+                    if message_id:
+                        _pin_telegram_message(chat_id, message_id)
+            else:
+                failed_count += 1
+                logger.error(f"  ❌ Telegram 图片发送失败 (Chat ID: {chat_id}): {response.status_code} - {response.text}")
+        except Exception as e:
+            failed_count += 1
+            logger.error(f"  ❌ Telegram 图片发送异常 (Chat ID: {chat_id}): {e}")
+
+    # 统计发送结果
+    if success_count > 0:
+        logger.info(f"  📊 图片发送统计: 成功 {success_count}/{len(chat_ids)}")
+        return True
+    else:
+        logger.error(f"  ❌ 所有频道图片发送失败 ({failed_count}/{len(chat_ids)})")
         return False
 
 
-def edit_message_with_photo(message_id, photo_data, caption=None):
+def edit_message_with_photo(message_ids, photo_data, caption=None):
     """
-    编辑已发送的消息，将其替换为图片消息（支持429重试）
+    编辑已发送的消息，将其替换为图片消息（支持多频道和429重试）
 
     Args:
-        message_id: 要编辑的消息ID
+        message_ids: 要编辑的消息ID字典 (格式: {chat_id: message_id}) 或单个message_id (兼容旧代码)
         photo_data: 图片数据（bytes）
         caption: 图片说明文字（支持 HTML 格式，可选）
 
@@ -179,97 +234,125 @@ def edit_message_with_photo(message_id, photo_data, caption=None):
         logger.warning("  ⚠️ Telegram Bot Token 未配置，跳过编辑")
         return False
 
+    # 兼容旧代码：如果传入的是单个 message_id（整数或字符串），转换为字典格式
+    if isinstance(message_ids, (int, str)):
+        # 使用配置的第一个 chat_id
+        chat_ids = _normalize_chat_ids(TELEGRAM_CHAT_ID)
+        if not chat_ids:
+            logger.warning("  ⚠️ Telegram Chat ID 未配置，跳过编辑")
+            return False
+        message_ids = {chat_ids[0]: message_ids}
+
+    if not isinstance(message_ids, dict):
+        logger.error(f"  ❌ message_ids 格式错误: {type(message_ids)}")
+        return False
+
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/editMessageMedia"
 
-    # 构建多部分表单数据
-    files = {
-        'media': ('chart.png', photo_data, 'image/png')
-    }
-
-    # 构建媒体对象
-    media_data = {
-        "type": "photo",
-        "media": "attach://media"
-    }
-    
-    if caption:
-        media_data["caption"] = caption
-        media_data["parse_mode"] = "HTML"
-
-    # 添加 Inline Keyboard 按钮（保持与原消息一致）
-    inline_keyboard = {
-        "inline_keyboard": [
-            [
-                {
-                    "text": "🔗 访问 ValueScan",
-                    "url": "https://www.valuescan.io/login?inviteCode=GXZ722"
-                }
-            ]
-        ]
-    }
-
-    data = {
-        'chat_id': TELEGRAM_CHAT_ID,
-        'message_id': message_id,
-        'media': json.dumps(media_data),
-        'reply_markup': json.dumps(inline_keyboard)
-    }
-
+    success_count = 0
+    failed_count = 0
     max_retries = 3
     base_delay = 2  # 基础延迟秒数
 
-    for attempt in range(max_retries):
-        try:
-            # 添加随机延迟避免并发冲突
-            if attempt > 0:
-                delay = base_delay + (attempt * 2)  # 递增延迟: 2, 4, 6秒
-                logger.info(f"  🔄 等待 {delay} 秒后重试编辑消息 (第 {attempt + 1} 次尝试)")
-                time.sleep(delay)
+    # 遍历所有 chat_id 编辑消息
+    for chat_id, message_id in message_ids.items():
+        for attempt in range(max_retries):
+            try:
+                # 添加随机延迟避免并发冲突
+                if attempt > 0:
+                    delay = base_delay + (attempt * 2)  # 递增延迟: 2, 4, 6秒
+                    logger.info(f"  🔄 等待 {delay} 秒后重试编辑消息 (Chat ID: {chat_id}, 第 {attempt + 1} 次尝试)")
+                    time.sleep(delay)
 
-            response = requests.post(url, data=data, files=files, timeout=30)
-            
-            if response.status_code == 200:
-                logger.info(f"  ✅ Telegram 消息编辑成功 (ID: {message_id})")
-                return True
-            elif response.status_code == 429:
-                # 处理速率限制
-                try:
-                    error_data = response.json()
-                    retry_after = error_data.get('parameters', {}).get('retry_after', 10)
-                    logger.warning(f"  ⏱️ API速率限制，等待 {retry_after} 秒后重试 (尝试 {attempt + 1}/{max_retries})")
-                    if attempt < max_retries - 1:  # 不是最后一次尝试
-                        time.sleep(retry_after + 1)  # 多等1秒确保安全
-                        continue
-                except:
-                    # JSON解析失败，使用默认延迟
-                    logger.warning(f"  ⏱️ API速率限制，等待 10 秒后重试 (尝试 {attempt + 1}/{max_retries})")
+                # 构建多部分表单数据
+                files = {
+                    'media': ('chart.png', photo_data, 'image/png')
+                }
+
+                # 构建媒体对象
+                media_data = {
+                    "type": "photo",
+                    "media": "attach://media"
+                }
+
+                if caption:
+                    media_data["caption"] = caption
+                    media_data["parse_mode"] = "HTML"
+
+                # 添加 Inline Keyboard 按钮（保持与原消息一致）
+                inline_keyboard = {
+                    "inline_keyboard": [
+                        [
+                            {
+                                "text": "🔗 访问 ValueScan",
+                                "url": "https://www.valuescan.io/login?inviteCode=GXZ722"
+                            }
+                        ]
+                    ]
+                }
+
+                data = {
+                    'chat_id': chat_id,
+                    'message_id': message_id,
+                    'media': json.dumps(media_data),
+                    'reply_markup': json.dumps(inline_keyboard)
+                }
+
+                response = requests.post(url, data=data, files=files, timeout=30)
+
+                if response.status_code == 200:
+                    success_count += 1
+                    logger.info(f"  ✅ Telegram 消息编辑成功 (Chat ID: {chat_id}, Message ID: {message_id})")
+                    break  # 成功，跳出重试循环
+                elif response.status_code == 429:
+                    # 处理速率限制
+                    try:
+                        error_data = response.json()
+                        retry_after = error_data.get('parameters', {}).get('retry_after', 10)
+                        logger.warning(f"  ⏱️ API速率限制 (Chat ID: {chat_id})，等待 {retry_after} 秒后重试 (尝试 {attempt + 1}/{max_retries})")
+                        if attempt < max_retries - 1:  # 不是最后一次尝试
+                            time.sleep(retry_after + 1)  # 多等1秒确保安全
+                            continue
+                    except:
+                        # JSON解析失败，使用默认延迟
+                        logger.warning(f"  ⏱️ API速率限制 (Chat ID: {chat_id})，等待 10 秒后重试 (尝试 {attempt + 1}/{max_retries})")
+                        if attempt < max_retries - 1:
+                            time.sleep(10)
+                            continue
+
+                    failed_count += 1
+                    logger.error(f"  ❌ 消息编辑失败 (Chat ID: {chat_id})，已达最大重试次数: 429 - {response.text}")
+                    break
+                else:
+                    logger.error(f"  ❌ Telegram 消息编辑失败 (Chat ID: {chat_id}): {response.status_code} - {response.text}")
                     if attempt < max_retries - 1:
-                        time.sleep(10)
-                        continue
-                
-                logger.error(f"  ❌ 消息编辑失败，已达最大重试次数: 429 - {response.text}")
-                return False
-            else:
-                logger.error(f"  ❌ Telegram 消息编辑失败: {response.status_code} - {response.text}")
+                        continue  # 其他错误也重试
+                    failed_count += 1
+                    break
+
+            except Exception as e:
+                logger.error(f"  ❌ Telegram 消息编辑异常 (Chat ID: {chat_id}, 尝试 {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
-                    continue  # 其他错误也重试
-                return False
-                
-        except Exception as e:
-            logger.error(f"  ❌ Telegram 消息编辑异常 (尝试 {attempt + 1}/{max_retries}): {e}")
-            if attempt < max_retries - 1:
-                time.sleep(base_delay)
-                continue
-            return False
+                    time.sleep(base_delay)
+                    continue
+                failed_count += 1
+                break
 
-    return False
+    # 统计编辑结果
+    if success_count > 0:
+        logger.info(f"  📊 消息编辑统计: 成功 {success_count}/{len(message_ids)}")
+        return True
+    else:
+        logger.error(f"  ❌ 所有频道消息编辑失败 ({failed_count}/{len(message_ids)})")
+        return False
 
 
-def _pin_telegram_message(message_id):
+def _pin_telegram_message(chat_id, message_id):
     """
     置顶 Telegram 消息（内部函数）
 
     Args:
+        chat_id: 目标频道/用户 ID
         message_id: 要置顶的消息ID
 
     Returns:
@@ -280,7 +363,7 @@ def _pin_telegram_message(message_id):
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/pinChatMessage"
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": chat_id,
         "message_id": message_id,
         "disable_notification": False  # 发送通知提醒用户
     }
@@ -288,13 +371,13 @@ def _pin_telegram_message(message_id):
     try:
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code == 200:
-            logger.info(f"  📌 消息已置顶 (ID: {message_id})")
+            logger.info(f"  📌 消息已置顶 (Chat ID: {chat_id}, Message ID: {message_id})")
             return True
         else:
-            logger.warning(f"  ⚠️ 置顶失败: {response.status_code} - {response.text}")
+            logger.warning(f"  ⚠️ 置顶失败 (Chat ID: {chat_id}): {response.status_code} - {response.text}")
             return False
     except Exception as e:
-        logger.warning(f"  ⚠️ 置顶异常: {e}")
+        logger.warning(f"  ⚠️ 置顶异常 (Chat ID: {chat_id}): {e}")
         return False
 
 
@@ -1480,13 +1563,13 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
     # 先立即发送文字消息
     logger.info(f"📝 立即发送融合信号（文字）: ${symbol}")
     text_result = send_telegram_message(message, pin_message=True)
-    
+
     if not text_result or not text_result.get("success"):
         logger.error(f"❌ 文字消息发送失败: ${symbol}")
         return False
 
-    message_id = text_result.get("message_id")
-    if not message_id:
+    message_ids = text_result.get("message_ids", {})
+    if not message_ids:
         logger.warning(f"⚠️ 未获取到消息ID，无法后续编辑: ${symbol}")
         return True  # 文字消息已发送成功
 
@@ -1501,7 +1584,7 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
     if enable_chart:
         try:
             from chart_generator import generate_tradingview_chart_async
-            
+
             # 异步生成图表的回调函数
             def chart_ready_callback(task_id, symbol, chart_data):
                 """图表生成完成后的回调 - 编辑已发送的消息添加图片"""
@@ -1512,11 +1595,11 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
                         delay = random.uniform(0.5, 2.0)  # 0.5-2秒随机延迟
                         logger.info(f"📊 图表生成完成，等待 {delay:.1f}秒后编辑融合信号: ${symbol} (任务ID: {task_id})")
                         time.sleep(delay)
-                        
-                        # 编辑已发送的消息，将其替换为图片消息
+
+                        # 编辑已发送的消息，将其替换为图片消息（支持多频道）
                         edit_result = edit_message_with_photo(
-                            message_id,
-                            chart_data, 
+                            message_ids,
+                            chart_data,
                             caption=message  # 使用完整的融合信号文字作为图片说明
                         )
                         if edit_result:
@@ -1527,11 +1610,11 @@ def send_confluence_alert(symbol, price, alpha_count, fomo_count):
                         logger.warning(f"⚠️ 图表生成失败，保持文字消息: ${symbol}")
                 except Exception as e:
                     logger.error(f"❌ 图表回调处理异常: {e}")
-            
+
             # 提交异步图表生成任务
             task_id = generate_tradingview_chart_async(symbol, callback=chart_ready_callback)
             logger.info(f"🔄 已启动异步图表生成，完成后编辑消息: ${symbol} (任务ID: {task_id})")
-            
+
         except Exception as e:
             logger.warning(f"⚠️ 异步图表生成启动失败: {e}")
 
@@ -1554,13 +1637,13 @@ def send_message_with_async_chart(message_text, symbol, pin_message=False):
 
     # 先立即发送文字消息
     text_result = send_telegram_message(message_text, pin_message=pin_message)
-    
+
     if not text_result or not text_result.get("success"):
         logger.error(f"❌ 文字消息发送失败: ${symbol}")
         return text_result
 
-    message_id = text_result.get("message_id")
-    if not message_id:
+    message_ids = text_result.get("message_ids", {})
+    if not message_ids:
         logger.warning(f"⚠️ 未获取到消息ID，无法后续编辑: ${symbol}")
         return text_result  # 文字消息已发送成功
 
@@ -1575,7 +1658,7 @@ def send_message_with_async_chart(message_text, symbol, pin_message=False):
     if enable_chart:
         try:
             from chart_generator import generate_tradingview_chart_async
-            
+
             # 异步生成图表的回调函数
             def chart_ready_callback(task_id, symbol, chart_data):
                 """图表生成完成后的回调 - 编辑已发送的消息添加图片"""
@@ -1586,11 +1669,11 @@ def send_message_with_async_chart(message_text, symbol, pin_message=False):
                         delay = random.uniform(0.5, 2.0)  # 0.5-2秒随机延迟
                         logger.info(f"📊 图表生成完成，等待 {delay:.1f}秒后编辑消息: ${symbol} (任务ID: {task_id})")
                         time.sleep(delay)
-                        
-                        # 编辑已发送的消息，将其替换为图片消息
+
+                        # 编辑已发送的消息，将其替换为图片消息（支持多频道）
                         edit_result = edit_message_with_photo(
-                            message_id,
-                            chart_data, 
+                            message_ids,
+                            chart_data,
                             caption=message_text  # 使用完整的消息文字作为图片说明
                         )
                         if edit_result:
@@ -1601,11 +1684,11 @@ def send_message_with_async_chart(message_text, symbol, pin_message=False):
                         logger.warning(f"⚠️ 图表生成失败，保持文字消息: ${symbol}")
                 except Exception as e:
                     logger.error(f"❌ 图表回调处理异常: {e}")
-            
+
             # 提交异步图表生成任务
             task_id = generate_tradingview_chart_async(symbol, callback=chart_ready_callback)
             logger.info(f"🔄 已启动异步图表生成，完成后编辑消息: ${symbol} (任务ID: {task_id})")
-            
+
         except Exception as e:
             logger.warning(f"⚠️ 异步图表生成启动失败: {e}")
 
